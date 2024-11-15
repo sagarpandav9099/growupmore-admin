@@ -1,0 +1,31 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    {% block title %}{% endblock title %}
+    <!-- Kendo UI CSS -->
+    <link rel="stylesheet" href="{% static 'css/kendo/kendo.default-v2.min.css' %}" />
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="{% static 'css/bootstrap5/css/bootstrap.min.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/style.css' %}" />
+
+<body>
+    <div class="container mt-5">
+       
+        {% block content %}{% endblock content %}
+        <!-- jQuery -->
+        <script src="{% static 'js/kendo/jquery.min.js' %}"></script>
+        
+        <!-- Kendo UI JS -->
+        <script src="{% static 'js/kendo/kendo.all.min.js' %}"></script>
+        <!-- Bootstrap JS -->
+        <script src="{% static 'js/bootstrap5/js/bootstrap.bundle.min.js' %}"></script>
+        <script src="{% static 'fontawesome/all.min.js' %}"></script>
+        {% block extra_js %}{% endblock extra_js %}
+       
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,624 @@
+{% extends "base.html" %}
+
+{% block title %}
+<title>Country Management</title>
+{% endblock title %}
+
+{% block content %}
+<!-- Global Search Bar and Add Button -->
+<div class="d-flex justify-content-between mb-3">
+    <input type="text" id="globalSearch" placeholder="Search..." style="width: 200px;" class="form-control" />
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#countryModal" id="addCountryBtn">
+        Add New Country
+    </button>
+</div>
+
+<!-- Success Alert -->
+<div class="alert alert-success alert-dismissible fade show" role="alert" id="successAlert">
+    <strong>Success!</strong> Operation completed successfully.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
+<!-- Error Alert -->
+<div class="alert alert-danger alert-dismissible fade show" role="alert" id="errorAlert">
+    <strong>Error!</strong> An error occurred.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
+<!-- Kendo UI Grid -->
+<div id="grid"></div>
+
+<!-- Overlay Spinner -->
+<div class="overlay">
+    <div class="spinner-container">
+        <div class="spinner-border text-light" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap Modal for Create/Edit -->
+<div class="modal fade" id="countryModal" tabindex="-1" aria-labelledby="countryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="countryModalLabel">Create New Country</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="countryForm" enctype="multipart/form-data" novalidate>
+                    <!-- Basic Information -->
+                    <div class="row g-3">
+                        <h5>Basic Information</h5>
+                        <div class="col-md-6">
+                            <label for="name" class="form-label">Country Name:</label>
+                            <input type="text" class="form-control" id="name" name="name" required minlength="2" maxlength="100">
+                            <div class="invalid-feedback">Please enter a valid country name (2-100 characters).</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="numeric_code" class="form-label">Numeric Code:</label>
+                            <input type="number" class="form-control" id="numeric_code" name="numeric_code" required min="1" max="999">
+                            <div class="invalid-feedback">Please enter a valid numeric code (1-999).</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="iso2" class="form-label">ISO2 Code:</label>
+                            <input type="text" class="form-control" id="iso2" name="iso2" required pattern="^[A-Z]{2}$" maxlength="2">
+                            <div class="invalid-feedback">Please enter a valid ISO2 code (2 uppercase letters).</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="iso3" class="form-label">ISO3 Code:</label>
+                            <input type="text" class="form-control" id="iso3" name="iso3" required pattern="^[A-Z]{3}$" maxlength="3">
+                            <div class="invalid-feedback">Please enter a valid ISO3 code (3 uppercase letters).</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="phone_code" class="form-label">Phone Code:</label>
+                            <input type="text" class="form-control" id="phone_code" name="phone_code" required pattern="^\+\d{1,4}$" maxlength="5">
+                            <div class="invalid-feedback">Please enter a valid phone code (e.g., +1, +44).</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="flag_image" class="form-label">Flag Image:</label>
+                            <input type="file" class="form-control" id="flag_image" name="flag_image" accept="image/png">
+                            <div class="invalid-feedback" id="flagImageFeedback">Please upload a valid PNG image under 200KB.</div>
+                        </div>
+                    </div>
+
+                    <!-- Currency Information -->
+                    <div class="row g-3 mt-2">
+                        <h5>Currency Information</h5>
+                        <div class="col-md-4">
+                            <label for="currency" class="form-label">Currency:</label>
+                            <input type="text" class="form-control" id="currency" name="currency" minlength="1" maxlength="20" required>
+                            <div class="invalid-feedback">Please enter a valid currency (up to 20 characters).</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="currency_name" class="form-label">Currency Name:</label>
+                            <input type="text" class="form-control" id="currency_name" name="currency_name" minlength="1" maxlength="50" required>
+                            <div class="invalid-feedback">Please enter a valid currency name (up to 50 characters).</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="currency_symbol" class="form-label">Currency Symbol:</label>
+                            <input type="text" class="form-control" id="currency_symbol" name="currency_symbol" minlength="1" maxlength="5" required>
+                            <div class="invalid-feedback">Please enter a valid currency symbol (up to 5 characters).</div>
+                        </div>
+                    </div>
+
+                    <!-- Language Information -->
+                    <div class="row g-3 mt-2">
+                        <h5>Language Information</h5>
+                        <div class="col-md-6">
+                            <label for="national_language" class="form-label">National Language:</label>
+                            <input type="text" class="form-control" id="national_language" name="national_language" minlength="2" maxlength="100" required>
+                            <div class="invalid-feedback">Please enter a valid national language (2-100 characters).</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="nationality" class="form-label">Nationality:</label>
+                            <input type="text" class="form-control" id="nationality" name="nationality" minlength="2" maxlength="100" required>
+                            <div class="invalid-feedback">Please enter a valid nationality (2-100 characters).</div>
+                        </div>
+                        <div class="col-md-12">
+                            <label for="languages" class="form-label">Languages (comma-separated):</label>
+                            <input type="text" class="form-control" id="languages" name="languages" pattern="^(\s*\w+\s*)(,\s*\w+\s*)*$" maxlength="255" required>
+                            <div class="invalid-feedback">Please enter valid languages separated by commas.</div>
+                        </div>
+                    </div>
+
+                    <!-- Communication Information -->
+                    <div class="row g-3 mt-2">
+                        <h5>Communication</h5>
+                        <div class="col-md-6">
+                            <label for="tld" class="form-label">Top Level Domain (TLD):</label>
+                            <input type="text" class="form-control" id="tld" name="tld" pattern="^\.\w{2,}$" maxlength="10">
+                            <div class="invalid-feedback">Please enter a valid TLD (e.g., .com, .org).</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="website" class="form-label">Website:</label>
+                            <input type="url" class="form-control" id="website" name="website" pattern="^(https?:\/\/)?([\w\-])+\.{1}([a-zA-Z]{2,63})([\/\w\-.?&=]*)*\/?$">
+                            <div class="invalid-feedback">Please enter a valid URL.</div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Information -->
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-6">
+                            <label for="founded_date" class="form-label">Founded Date:</label>
+                            <input type="date" class="form-control" id="founded_date" name="founded_date">
+                            <div class="invalid-feedback">Please enter a valid founded date.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="status" class="form-label">Status:</label>
+                            <select class="form-select" id="status" name="status" required>
+                                <option value="draft" selected>Draft</option>
+                                <option value="review">Review</option>
+                                <option value="published">Published</option>
+                            </select>
+                            <div class="invalid-feedback">Please select a status.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Active:</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_active" name="is_active">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <input type="hidden" id="countryId" name="id" />
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">Submit</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function () {
+        // Define the Base URL once
+        var baseUrl = "https://13.60.105.3/api/master/countries/";
+
+        var isEditing = false; // Flag to determine add or edit mode
+
+        // Define the status options
+        var statusOptions = [
+            { text: "Draft", value: "draft" },
+            { text: "Review", value: "review" },
+            { text: "Published", value: "published" }
+        ];
+        
+
+        // Initialize the Kendo UI Grid
+        var grid = $("#grid").kendoGrid({
+            dataSource: {
+                transport: {
+                    read: {
+                        url: baseUrl,
+                        dataType: "json",
+                        type: "GET",
+                        beforeSend: function(xhr) {
+                            xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                        }
+                    },
+                    update: {
+                        url: function (data) {
+                            return baseUrl + data.id + "/";
+                        },
+                        dataType: "json",
+                        type: "PATCH",
+                        contentType: "application/json"
+                    },
+                    // Removed the destroy transport to avoid conflicts with custom delete function
+                    parameterMap: function (options, operation) {
+                        if (operation === "read") {
+                            var params = {};
+                            // Handle pagination
+                            params.take = options.take;
+                            params.skip = options.skip;
+
+                            // Handle global search
+                            if (options.search && options.search.value) {
+                                params.search = options.search.value;
+                            }
+
+                            // Handle filters
+                            if (options.filter) {
+                                options.filter.filters.forEach(function (filter) {
+                                    if (filter.operator === "contains") {
+                                        params.search = filter.value;
+                                    } else if (filter.operator === "eq") {
+                                        params[filter.field] = filter.value;
+                                    }
+                                });
+                            }
+
+                            // Handle sorting
+                            if (options.sort && options.sort.length > 0) {
+                                var ordering = options.sort.map(function (s) {
+                                    return s.dir === "desc" ? "-" + s.field : s.field;
+                                }).join(",");
+                                params.ordering = ordering;
+                            }
+
+                            return params;
+                        }
+
+                        if (operation === "update") {
+                            return JSON.stringify({
+                                status: options.status,
+                                is_active: options.is_active
+                            });
+                        }
+
+                        return options;
+                    }
+                },
+                schema: {
+                    data: "results",
+                    total: "total",
+                    model: {
+                        id: "id",
+                        fields: {
+                            id: { editable: false, nullable: true },
+                            name: { type: "string", editable: false, validation: { required: true } },
+                            iso3: { type: "string", editable: false },
+                            flag_image: { type: "string", editable: false },
+                            status: { type: "string" },
+                            is_active: { type: "boolean" },
+                            numeric_code: { type: "number", editable: false },
+                            iso2: { type: "string", editable: false },
+                            phone_code: { type: "string", editable: false },
+                            currency: { type: "string", editable: false },
+                            currency_name: { type: "string", editable: false },
+                            currency_symbol: { type: "string", editable: false },
+                            national_language: { type: "string", editable: false },
+                            nationality: { type: "string", editable: false },
+                            languages: { type: "string", editable: false },
+                            tld: { type: "string", editable: false },
+                            website: { type: "string", editable: false },
+                            founded_date: { type: "date", editable: false }
+                        }
+                    }
+                },
+                pageSize: 5,
+                serverPaging: true,
+                serverFiltering: true,
+                serverSorting: true
+            },
+            pageable: {
+                refresh: true,
+                pageSizes: [5, 10, 20],
+                buttonCount: 5
+            },
+            sortable: true,
+            filterable: {
+                mode: "row",
+                operators: {
+                    string: {
+                        contains: "Contains",
+                        eq: "Is equal to"
+                    },
+                    boolean: {
+                        eq: "Is equal to"
+                    }
+                }
+            },
+            toolbar: [
+                { name: "save", text: "Save Changes" },
+                { name: "cancel", text: "Cancel Changes" }
+            ],
+            editable: "incell",
+            columns: [
+                { field: "name", title: "Name" },
+                { field: "iso3", title: "ISO3" },
+                {
+                    field: "flag_image",
+                    title: "Flag",
+                    width: "100px",
+                    sortable: false,
+                    filterable: false,
+                    template: "<img src='#= flag_image #' alt='Flag' style='width: 32px; height: 32px;' />"
+                },
+                {
+                    field: "status",
+                    title: "Status",
+                    width: "150px",
+                    editor: statusEditor,
+                    template: "#= status ? status.charAt(0).toUpperCase() + status.slice(1) : '' #",
+                    filterable: {
+                        ui: statusFilter
+                    }
+                },
+                {
+                    field: "is_active",
+                    title: "Active",
+                    width: "80px",
+                    editor: toggleEditor,
+                    template: "#= is_active ? 'Yes' : 'No' #",
+                    filterable: {
+                        ui: activeFilter
+                    }
+                },
+                {
+                    command: [
+                        {
+                            name: "edit",
+                            text: "<i class='fas fa-edit'></i>",
+                            click: editCountry
+                        },
+                        {
+                            name: "customDelete", // Custom delete command
+                            text: "<i class='fas fa-trash-alt'></i>",
+                            click: deleteCountry
+                        }
+                    ],
+                    title: "&nbsp;",
+                    width: "150px"
+                }
+            ]
+        }).data("kendoGrid");
+
+        // Custom editor for "status" field
+        function statusEditor(container, options) {
+            $('<input required data-text-field="text" data-value-field="value" data-bind="value:status" />')
+                .appendTo(container)
+                .kendoDropDownList({
+                    dataSource: statusOptions
+                });
+        }
+
+        // Custom editor for "is_active" field
+        function toggleEditor(container, options) {
+            $('<input type="checkbox" name="is_active" data-type="boolean" data-bind="checked:is_active" />')
+                .appendTo(container);
+        }
+
+        // Filter UI for "status" field
+        function statusFilter(element) {
+            element.kendoDropDownList({
+                dataSource: statusOptions,
+                optionLabel: "--Select Status--"
+            });
+        }
+
+        // Filter UI for "is_active" field
+        function activeFilter(element) {
+            element.kendoDropDownList({
+                dataSource: [
+                    { text: "Yes", value: true },
+                    { text: "No", value: false }
+                ],
+                optionLabel: "--Select Active--"
+            });
+        }
+
+        // Global Search Functionality
+        $("#globalSearch").keyup(function () {
+            var value = $(this).val();
+            if (value) {
+                grid.dataSource.filter({
+                    logic: "or",
+                    filters: [
+                        { field: "name", operator: "contains", value: value },
+                        { field: "status", operator: "contains", value: value },
+                        { field: "iso2", operator: "contains", value: value },
+                        { field: "iso3", operator: "contains", value: value },
+                        { field: "is_active", operator: "eq", value: value.toLowerCase() === "yes" || value.toLowerCase() === "true" }
+                    ]
+                });
+            } else {
+                grid.dataSource.filter({});
+            }
+        });
+
+        // Handle Add New Country Button Click
+        $("#addCountryBtn").click(function () {
+            resetForm();
+            isEditing = false; // Set to add mode
+            $("#countryModalLabel").text("Create New Country");
+            $("#submitBtn").text("Create");
+            $("#flag_image").attr("required", "required"); // Make flag_image required
+            $("#countryModal").modal("show");
+        });
+
+        // Handle Edit Button Click
+        function editCountry(e) {
+            e.preventDefault();
+            var dataItem = grid.dataItem($(e.currentTarget).closest("tr"));
+
+            // Populate the form with dataItem
+            $("#countryId").val(dataItem.id);
+            $("#name").val(dataItem.name);
+            $("#numeric_code").val(dataItem.numeric_code);
+            $("#iso2").val(dataItem.iso2);
+            $("#iso3").val(dataItem.iso3);
+            $("#phone_code").val(dataItem.phone_code);
+            $("#currency").val(dataItem.currency);
+            $("#currency_name").val(dataItem.currency_name);
+            $("#currency_symbol").val(dataItem.currency_symbol);
+            $("#national_language").val(dataItem.national_language);
+            $("#nationality").val(dataItem.nationality);
+            $("#languages").val(dataItem.languages);
+            $("#tld").val(dataItem.tld);
+            $("#website").val(dataItem.website);
+            $("#founded_date").val(dataItem.founded_date ? new Date(dataItem.founded_date).toISOString().split('T')[0] : '');
+            $("#status").val(dataItem.status);
+            $("#is_active").prop("checked", dataItem.is_active);
+
+            isEditing = true; // Set to edit mode
+            $("#countryModalLabel").text("Edit Country");
+            $("#submitBtn").text("Update");
+            $("#flag_image").removeAttr("required"); // Make flag_image optional
+            $("#countryModal").modal("show");
+        }
+
+        // Handle Delete Button Click
+        function deleteCountry(e) {
+            e.preventDefault();
+            var grid = $("#grid").data("kendoGrid");
+            var dataItem = grid.dataItem($(e.currentTarget).closest("tr"));
+
+            if (confirm("Are you sure you want to delete this country?")) {
+                // Show overlay
+                $(".overlay").show();
+
+                $.ajax({
+                    url: baseUrl + dataItem.id + "/",
+                    type: "DELETE",
+                    beforeSend: function(xhr) {
+                        xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                    },
+                    success: function () {
+                        $("#successAlert").text("Country deleted successfully.").fadeIn();
+                        grid.dataSource.read();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#successAlert").fadeOut();
+                        }, 3000);
+                    },
+                    error: function (xhr, status, error) {
+                        $("#errorAlert").text("Error deleting country: " + (xhr.responseText || error)).fadeIn();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#errorAlert").fadeOut();
+                        }, 5000);
+                    }
+                });
+            }
+        }
+
+        // Reset Form Function
+        function resetForm() {
+            $("#countryForm")[0].reset();
+            $("#countryForm").removeClass("was-validated");
+            $("#countryId").val("");
+            $("#flagImageFeedback").text('');
+            $("#is_active").prop("checked", false);
+            $("#flag_image").removeAttr("required"); // Remove required attribute
+            $("#flag_image").removeClass('is-invalid is-valid');
+        }
+
+        // Validate flag image size and type
+        $('#flag_image').on('change', function () {
+            const file = this.files[0];
+            if (file) {
+                if (file.size > 200 * 1024) { // 200 KB limit
+                    $('#flagImageFeedback').text('File size must be under 200KB.');
+                    this.setCustomValidity("File size must be under 200KB.");
+                    $(this).addClass('is-invalid').removeClass('is-valid');
+                } else if (!file.type.match('image/png')) {
+                    $('#flagImageFeedback').text('Only PNG images are allowed.');
+                    this.setCustomValidity("Only PNG images are allowed.");
+                    $(this).addClass('is-invalid').removeClass('is-valid');
+                } else {
+                    $('#flagImageFeedback').text('');
+                    this.setCustomValidity("");
+                    $(this).addClass('is-valid').removeClass('is-invalid');
+                }
+            } else {
+                if (!isEditing) {
+                    // If adding and no file selected, mark as invalid
+                    $('#flagImageFeedback').text('Flag image is required.');
+                    this.setCustomValidity("Flag image is required.");
+                    $(this).addClass('is-invalid').removeClass('is-valid');
+                } else {
+                    // If editing and no file selected, reset validation
+                    $('#flagImageFeedback').text('');
+                    this.setCustomValidity("");
+                    $(this).removeClass('is-invalid is-valid');
+                }
+            }
+        });
+
+        // Handle Form Submission for Create and Update
+        $('#countryForm').on('submit', function (e) {
+            e.preventDefault();
+
+            var form = this;
+            var flagImageInput = $('#flag_image')[0];
+            var formData = new FormData(form);
+            var countryId = $("#countryId").val();
+            var isActive = $('#is_active').is(':checked');
+            formData.set("is_active", isActive);
+
+            // Set the 'required' attribute dynamically based on isEditing
+            if (!isEditing) {
+                flagImageInput.setAttribute('required', 'required');
+            } else {
+                flagImageInput.removeAttribute('required');
+            }
+
+            // Check form validity
+            var isValid = form.checkValidity();
+            if (!isEditing) {
+                // When adding, ensure flag_image is uploaded
+                if (!flagImageInput.files[0]) {
+                    isValid = false;
+                    $('#flag_image').addClass('is-invalid');
+                    $('#flagImageFeedback').text('Flag image is required.');
+                }
+            }
+
+            if (isValid) {
+                // **New Code: Remove 'flag_image' from FormData if editing and no new file is uploaded**
+                if (isEditing && !flagImageInput.files[0]) {
+                    formData.delete('flag_image');
+                }
+
+                // Show overlay
+                $(".overlay").show();
+
+                // Hide alerts
+                $("#successAlert").hide();
+                $("#errorAlert").hide();
+
+                // Determine the request type
+                var requestType = countryId ? "PATCH" : "POST";
+                var requestUrl = countryId ? baseUrl + countryId + "/" : baseUrl;
+
+                $.ajax({
+                    url: requestUrl,
+                    type: requestType,
+                    beforeSend: function(xhr) {
+                        xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                    },
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (response) {
+                        $("#successAlert").text(countryId ? "Country updated successfully." : "Country created successfully.").fadeIn();
+                        $("#countryModal").modal("hide");
+                        grid.dataSource.read();
+                        resetForm();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#successAlert").fadeOut();
+                        }, 3000);
+                    },
+                    error: function (xhr, status, error) {
+                        $("#errorAlert").text("Error: " + (xhr.responseText || error)).fadeIn();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#errorAlert").fadeOut();
+                        }, 5000);
+                    }
+                });
+            } else {
+                e.stopPropagation();
+                $(form).addClass('was-validated');
+            }
+        });
+
+        // Reset form when modal is closed
+        $('#countryModal').on('hidden.bs.modal', function () {
+            resetForm();
+            $("#countryModalLabel").text("Create New Country");
+            $("#submitBtn").text("Submit");
+            isEditing = false; // Reset to add mode
+            $("#flag_image").attr("required", "required"); // Make flag_image required by default
+        });
+    });
+</script>
+{% endblock extra_js %}

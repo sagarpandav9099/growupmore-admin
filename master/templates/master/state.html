@@ -1,0 +1,534 @@
+{% extends "base.html" %}
+
+{% block title %}
+<title>State Management</title>
+{% endblock title %}
+
+{% block content %}
+<!-- Global Search Bar and Add Button -->
+<div class="d-flex justify-content-between mb-3">
+    <input type="text" id="globalSearch" placeholder="Search..." style="width: 200px;" class="form-control" />
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#stateModal" id="addStateBtn">
+        Add New State
+    </button>
+</div>
+
+<!-- Success Alert -->
+<div class="alert alert-success alert-dismissible fade show" role="alert" id="successAlert">
+    <strong>Success!</strong> Operation completed successfully.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
+<!-- Error Alert -->
+<div class="alert alert-danger alert-dismissible fade show" role="alert" id="errorAlert">
+    <strong>Error!</strong> An error occurred.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
+<!-- Kendo UI Grid -->
+<div id="grid"></div>
+
+<!-- Overlay Spinner -->
+<div class="overlay">
+    <div class="spinner-container">
+        <div class="spinner-border text-light" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap Modal for Create/Edit -->
+<div class="modal fade" id="stateModal" tabindex="-1" aria-labelledby="stateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="stateModalLabel">Create New State</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="stateForm" enctype="multipart/form-data" novalidate>
+                    <!-- Basic Information -->
+                    <div class="row g-3">
+                        <h5>Basic Information</h5>
+                        <div class="col-md-6">
+                            <label for="country" class="form-label">Country:</label>
+                            <select class="form-select" id="country" name="country" required>
+                                <option value="">-- Select Country --</option>
+                                <!-- Options will be populated via AJAX -->
+                            </select>
+                            <div class="invalid-feedback">Please select a country.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="name" class="form-label">State Name:</label>
+                            <input type="text" class="form-control" id="name" name="name" required minlength="2" maxlength="40">
+                            <div class="invalid-feedback">Please enter a valid state name (2-40 characters).</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="founded_date" class="form-label">Founded Date:</label>
+                            <input type="date" class="form-control" id="founded_date" name="founded_date">
+                            <div class="invalid-feedback">Please enter a valid founded date.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="website" class="form-label">Website:</label>
+                            <input type="url" class="form-control" id="website" name="website" pattern="^(https?:\/\/)?([\w\-])+\.{1}([a-zA-Z]{2,63})([\/\w\-.?&=]*)*\/?$">
+                            <div class="invalid-feedback">Please enter a valid URL.</div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Information -->
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-6">
+                            <label for="status" class="form-label">Status:</label>
+                            <select class="form-select" id="status" name="status" required>
+                                <option value="draft" selected>Draft</option>
+                                <option value="review">Review</option>
+                                <option value="published">Published</option>
+                            </select>
+                            <div class="invalid-feedback">Please select a status.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Active:</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_active" name="is_active">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <input type="hidden" id="stateId" name="id" />
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">Submit</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function () {
+        // Define the Base URL once
+        var baseUrl = "https://13.60.105.3/api/master/states/";
+        var countryUrl = "https://13.60.105.3/api/master/countries/";
+
+        var isEditing = false; // Flag to determine add or edit mode
+
+        // Define the status options
+        var statusOptions = [
+            { text: "Draft", value: "draft" },
+            { text: "Review", value: "review" },
+            { text: "Published", value: "published" }
+        ];
+
+        var countriesData = []; // To store countries data for dropdowns
+
+        // Function to load countries via AJAX
+        function loadCountries(selectedId) {
+            return $.ajax({
+                url: countryUrl,
+                type: "GET",
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                },
+                dataType: "json",
+                success: function (data) {
+                    countriesData = data.results;
+                    var options = '<option value="">-- Select Country --</option>';
+                    data.results.forEach(function (country) {
+                        options += `<option value="${country.id}">${country.name}</option>`;
+                    });
+                    $("#country").html(options);
+                },
+                error: function (xhr, status, error) {
+                    $("#errorAlert").text("Error loading countries: " + (xhr.responseText || error)).fadeIn();
+                    setTimeout(function () {
+                        $("#errorAlert").fadeOut();
+                    }, 5000);
+                }
+            });
+        }
+
+        // Initial load of countries for the form
+        loadCountries();
+
+        // Initialize the Kendo UI Grid
+        var grid = $("#grid").kendoGrid({
+            dataSource: {
+                transport: {
+                    read: {
+                        url: baseUrl,
+                        dataType: "json",
+                        type: "GET",
+                        beforeSend: function(xhr) {
+                            xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                        },
+                    },
+                    update: {
+                        url: function (data) {
+                            return baseUrl + data.id + "/";
+                        },
+                        dataType: "json",
+                        type: "PATCH",
+                        contentType: "application/json"
+                    },
+                    // Removed the destroy transport to avoid conflicts with custom delete function
+                    parameterMap: function (options, operation) {
+                        if (operation === "read") {
+                            var params = {};
+                            // Handle pagination
+                            params.take = options.take;
+                            params.skip = options.skip;
+
+                            // Handle global search
+                            if (options.search && options.search.value) {
+                                params.search = options.search.value;
+                            }
+
+                            // Handle filters
+                            if (options.filter) {
+                                options.filter.filters.forEach(function (filter) {
+                                    if (filter.operator === "contains") {
+                                        params.search = filter.value;
+                                    } else if (filter.operator === "eq") {
+                                        params[filter.field] = filter.value;
+                                    }
+                                });
+                            }
+
+                            // Handle sorting
+                            if (options.sort && options.sort.length > 0) {
+                                var ordering = options.sort.map(function (s) {
+                                    return s.dir === "desc" ? "-" + s.field : s.field;
+                                }).join(",");
+                                params.ordering = ordering;
+                            }
+
+                            return params;
+                        }
+
+                        if (operation === "update") {
+                            return JSON.stringify({
+                                status: options.status,
+                                is_active: options.is_active
+                            });
+                        }
+
+                        return options;
+                    }
+                },
+                schema: {
+                    data: "results",
+                    total: "total",
+                    model: {
+                        id: "id",
+                        fields: {
+                            id: { editable: false, nullable: true },
+                            country: { 
+                                editable: false,
+                                defaultValue: null,
+                                validation: { required: true },
+                                // Represented as country ID
+                            },
+                            name: {  editable: false,type: "string", validation: { required: true } },
+                            founded_date: { type: "date" },
+                            website: { type: "string" },
+                            status: { type: "string" },
+                            is_active: { type: "boolean" }
+                        }
+                    }
+                },
+                pageSize: 5,
+                serverPaging: true,
+                serverFiltering: true,
+                serverSorting: true
+            },
+            pageable: {
+                refresh: true,
+                pageSizes: [5, 10, 20],
+                buttonCount: 5
+            },
+            sortable: true,
+            filterable: {
+                mode: "row",
+                operators: {
+                    string: {
+                        contains: "Contains",
+                        eq: "Is equal to"
+                    },
+                    boolean: {
+                        eq: "Is equal to"
+                    }
+                }
+            },
+            toolbar: [
+                { name: "save", text: "Save Changes" },
+                { name: "cancel", text: "Cancel Changes" }
+            ],
+            editable: "incell",
+            columns: [
+                { field: "country", title: "Country", template: function(dataItem) {
+                    var country = countriesData.find(c => c.id === dataItem.country);
+                    return country ? country.name : "N/A";
+                }, editor: countryEditor, filterable: countryFilter },
+                { field: "name", title: "State Name" },
+                { 
+                    field: "status", 
+                    title: "Status", 
+                    width: "150px",
+                    editor: statusEditor,
+                    template: "#= status ? status.charAt(0).toUpperCase() + status.slice(1) : '' #",
+                    filterable: {
+                        ui: statusFilter
+                    }
+                },
+                { 
+                    field: "is_active", 
+                    title: "Active", 
+                    width: "80px",
+                    editor: toggleEditor,
+                    template: "#= is_active ? 'Yes' : 'No' #",
+                    filterable: {
+                        ui: activeFilter
+                    }
+                },
+                {
+                    command: [
+                        {
+                            name: "edit",
+                            text: "<i class='fas fa-edit'></i>",
+                            click: editState
+                        },
+                        {
+                            name: "customDelete", // Custom delete command
+                            text: "<i class='fas fa-trash-alt'></i>",
+                            click: deleteState
+                        }
+                    ],
+                    title: "&nbsp;",
+                    width: "150px"
+                }
+            ]
+        }).data("kendoGrid");
+
+        // Custom editor for "status" field
+        function statusEditor(container, options) {
+            $('<input required data-text-field="text" data-value-field="value" data-bind="value:status" />')
+                .appendTo(container)
+                .kendoDropDownList({
+                    dataSource: statusOptions
+                });
+        }
+
+        // Custom editor for "is_active" field
+        function toggleEditor(container, options) {
+            $('<input type="checkbox" name="is_active" data-type="boolean" data-bind="checked:is_active" />')
+                .appendTo(container);
+        }
+
+        // Custom editor for "country" field
+        function countryEditor(container, options) {
+            $('<select required data-bind="value:country"></select>')
+                .appendTo(container)
+                .kendoDropDownList({
+                    dataSource: countriesData,
+                    dataTextField: "name",
+                    dataValueField: "id",
+                    optionLabel: "-- Select Country --"
+                });
+        }
+
+        // Filter UI for "status" field
+        function statusFilter(element) {
+            element.kendoDropDownList({
+                dataSource: statusOptions,
+                optionLabel: "--Select Status--"
+            });
+        }
+
+        // Filter UI for "is_active" field
+        function activeFilter(element) {
+            element.kendoDropDownList({
+                dataSource: [
+                    { text: "Yes", value: true },
+                    { text: "No", value: false }
+                ],
+                optionLabel: "--Select Active--"
+            });
+        }
+
+        // Filter UI for "country" field
+        function countryFilter(element) {
+            element.kendoDropDownList({
+                dataSource: countriesData,
+                dataTextField: "name",
+                dataValueField: "id",
+                optionLabel: "--Select Country--"
+            });
+        }
+
+        // Global Search Functionality
+        $("#globalSearch").keyup(function () {
+            var value = $(this).val();
+            if (value) {
+                grid.dataSource.filter({
+                    logic: "or",
+                    filters: [
+                        { field: "name", operator: "contains", value: value },
+                        { field: "status", operator: "contains", value: value },
+                        { field: "country", operator: "eq", value: getCountryIdByName(value) },
+                        { field: "is_active", operator: "eq", value: value.toLowerCase() === "yes" || value.toLowerCase() === "true" }
+                    ]
+                });
+            } else {
+                grid.dataSource.filter({});
+            }
+        });
+
+        // Helper function to get country ID by name
+        function getCountryIdByName(name) {
+            var country = countriesData.find(c => c.name.toLowerCase().includes(name.toLowerCase()));
+            return country ? country.id : null;
+        }
+
+        // Handle Add New State Button Click
+        $("#addStateBtn").click(function () {
+            resetForm();
+            isEditing = false; // Set to add mode
+            $("#stateModalLabel").text("Create New State");
+            $("#submitBtn").text("Create");
+            $("#stateModal").modal("show");
+        });
+
+        // Handle Edit Button Click
+        function editState(e) {
+            e.preventDefault();
+            var dataItem = grid.dataItem($(e.currentTarget).closest("tr"));
+
+            // Populate the form with dataItem
+            $("#stateId").val(dataItem.id);
+            $("#country").val(dataItem.country);
+            $("#name").val(dataItem.name);
+            $("#founded_date").val(dataItem.founded_date ? new Date(dataItem.founded_date).toISOString().split('T')[0] : '');
+            $("#website").val(dataItem.website);
+            $("#status").val(dataItem.status);
+            $("#is_active").prop("checked", dataItem.is_active);
+
+            isEditing = true; // Set to edit mode
+            $("#stateModalLabel").text("Edit State");
+            $("#submitBtn").text("Update");
+            $("#stateModal").modal("show");
+        }
+
+        // Handle Delete Button Click
+        function deleteState(e) {
+            e.preventDefault();
+            var grid = $("#grid").data("kendoGrid");
+            var dataItem = grid.dataItem($(e.currentTarget).closest("tr"));
+
+            if (confirm("Are you sure you want to delete this state?")) {
+                // Show overlay
+                $(".overlay").show();
+
+                $.ajax({
+                    url: baseUrl + dataItem.id + "/",
+                    type: "DELETE",
+                    beforeSend: function(xhr) {
+                        xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                    },
+                    success: function () {
+                        $("#successAlert").text("State deleted successfully.").fadeIn();
+                        grid.dataSource.read();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#successAlert").fadeOut();
+                        }, 3000);
+                    },
+                    error: function (xhr, status, error) {
+                        $("#errorAlert").text("Error deleting state: " + (xhr.responseText || error)).fadeIn();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#errorAlert").fadeOut();
+                        }, 5000);
+                    }
+                });
+            }
+        }
+
+        // Reset Form Function
+        function resetForm() {
+            $("#stateForm")[0].reset();
+            $("#stateForm").removeClass("was-validated");
+            $("#stateId").val("");
+            $("#is_active").prop("checked", false);
+            $("#country").val("");
+        }
+
+        // Handle Form Submission for Create and Update
+        $('#stateForm').on('submit', function (e) {
+            e.preventDefault();
+
+            var form = this;
+            var formData = new FormData(form);
+            var stateId = $("#stateId").val();
+            var isActive = $('#is_active').is(':checked');
+            formData.set("is_active", isActive);
+
+            // Check form validity
+            var isValid = form.checkValidity();
+
+            if (isValid) {
+                // Show overlay
+                $(".overlay").show();
+
+                // Hide alerts
+                $("#successAlert").hide();
+                $("#errorAlert").hide();
+
+                // Determine the request type
+                var requestType = stateId ? "PATCH" : "POST";
+                var requestUrl = stateId ? baseUrl + stateId + "/" : baseUrl;
+
+                $.ajax({
+                    url: requestUrl,
+                    type: requestType,
+                    beforeSend: function(xhr) {
+                        xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                    },
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (response) {
+                        $("#successAlert").text(stateId ? "State updated successfully." : "State created successfully.").fadeIn();
+                        $("#stateModal").modal("hide");
+                        grid.dataSource.read();
+                        resetForm();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#successAlert").fadeOut();
+                        }, 3000);
+                    },
+                    error: function (xhr, status, error) {
+                        $("#errorAlert").text("Error: " + (xhr.responseText || error)).fadeIn();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#errorAlert").fadeOut();
+                        }, 5000);
+                    }
+                });
+            } else {
+                e.stopPropagation();
+                $(form).addClass('was-validated');
+            }
+        });
+
+        // Reset form when modal is closed
+        $('#stateModal').on('hidden.bs.modal', function () {
+            resetForm();
+            $("#stateModalLabel").text("Create New State");
+            $("#submitBtn").text("Submit");
+        });
+    });
+</script>
+{% endblock extra_js %}

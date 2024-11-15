@@ -1,0 +1,608 @@
+{% extends "base.html" %}
+
+{% block title %}
+<title>Employee Bank Management</title>
+{% endblock title %}
+
+{% block content %}
+<!-- Global Search Bar and Add Button -->
+<div class="d-flex justify-content-between mb-3">
+    <input type="text" id="globalSearch" placeholder="Search..." style="width: 200px;" class="form-control" />
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#employeeBankModal" id="addemployeeBankBtn">
+        Add New Employee Bank
+    </button>
+</div>
+
+<!-- Success Alert -->
+<div class="alert alert-success alert-dismissible fade show" role="alert" id="successAlert">
+    <strong>Success!</strong> Operation completed successfully.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
+<!-- Error Alert -->
+<div class="alert alert-danger alert-dismissible fade show" role="alert" id="errorAlert">
+    <strong>Error!</strong> An error occurred.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
+<!-- Kendo UI Grid -->
+<div id="grid"></div>
+
+<!-- Overlay Spinner -->
+<div class="overlay">
+    <div class="spinner-container">
+        <div class="spinner-border text-light" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap Modal for Create/Edit -->
+<div class="modal fade" id="employeeBankModal" tabindex="-1" aria-labelledby="employeeBankModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="employeeBankModalLabel">Create New Employee Bank</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="employeeBankForm" enctype="multipart/form-data" novalidate>
+                    <!-- Basic Information -->
+                    <div class="row g-3">
+                        <h5>Basic Information</h5>
+                        <div class="col-md-6">
+                            <label for="employee" class="form-label">Employee:</label>
+                            <select class="form-select" id="employee" name="employee" required>
+                                <option value="">-- Select Employee --</option>
+                                <!-- Options will be populated via AJAX -->
+                            </select>
+                            <div class="invalid-feedback">Please select a employee.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="bank" class="form-label">Bank:</label>
+                            <select class="form-select" id="bank" name="bank" required>
+                                <option value="">-- Select Bank --</option>
+                                <!-- Options will be populated via AJAX -->
+                            </select>
+                            <div class="invalid-feedback">Please select a bank.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="bank_ac_no" class="form-label">Bank Account Number:</label>
+                            <input type="text" class="form-control" id="bank_ac_no" name="bank_ac_no" required minlength="10" maxlength="20" pattern="\d{10,20}">
+                            <div class="invalid-feedback">Please enter a valid bank account number (10-20 digits).</div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="bank_ac_IFSC" class="form-label">Bank IFSC Code:</label>
+                            <input type="text" class="form-control" id="bank_ac_IFSC" name="bank_ac_IFSC" required pattern="^[A-Z]{4}0[A-Z0-9]{6}$">
+                            <div class="invalid-feedback">Please enter a valid IFSC code (e.g., ABCD0123456).</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="bank_country" class="form-label">Bank Country:</label>
+                            <select class="form-select" id="bank_country" name="bank_country" required>
+                                <option value="">-- Select Employee --</option>
+                                <!-- Options will be populated via AJAX -->
+                            </select>
+                            <div class="invalid-feedback">Please select a bank country.</div>
+                        </div>
+                   
+                    
+                        <div class="col-md-6">
+                            <label for="status" class="form-label">Status:</label>
+                            <select class="form-select" id="status" name="status" required>
+                                <option value="draft" selected>Draft</option>
+                                <option value="review">Review</option>
+                                <option value="published">Published</option>
+                            </select>
+                            <div class="invalid-feedback">Please select a status.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Active:</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_active" name="is_active">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <input type="hidden" id="employeeBankId" name="id" />
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">Submit</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function () {
+        // Define the Base URL once
+        var baseUrl = "https://13.60.105.3/api/hr/employee-banks/";
+        var employeeUrl = "https://13.60.105.3/api/hr/employees/";
+        var countryUrl = "https://13.60.105.3/api/master/countries/";
+        var bankUrl = "https://13.60.105.3/api/master/banks/";
+
+        var isEditing = false; // Flag to determine add or edit mode
+
+        // Define the status options
+        var statusOptions = [
+            { text: "Draft", value: "draft" },
+            { text: "Review", value: "review" },
+            { text: "Published", value: "published" }
+        ];
+
+        var countriesData = []; // To store countries data for dropdowns
+        var employeesData = [];
+        var banksData = [];  
+        // Function to load countries via AJAX
+        function loadEmployees(selectedId) {
+            return $.ajax({
+                url: employeeUrl,
+                type: "GET",
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                },
+                dataType: "json",
+                success: function (data) {
+                    employeesData = data.results;
+                    var options = '<option value="">-- Select Employee --</option>';
+                    data.results.forEach(function (employee) {
+                        options += `<option value="${employee.id}">${employee.first_name} ${employee.last_name}</option>`;
+                    });
+                    $("#employee").html(options);
+                },
+                error: function (xhr, status, error) {
+                    $("#errorAlert").text("Error loading employees: " + (xhr.responseText || error)).fadeIn();
+                    setTimeout(function () {
+                        $("#errorAlert").fadeOut();
+                    }, 5000);
+                }
+            });
+        }
+
+        // Initial load of countries for the form
+        loadEmployees();
+        // Function to load countries via AJAX
+        function loadBanks(selectedId) {
+            return $.ajax({
+                url: bankUrl,
+                type: "GET",
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                },
+                dataType: "json",
+                success: function (data) {
+                    employeesData = data.results;
+                    var options = '<option value="">-- Select Bank --</option>';
+                    data.results.forEach(function (bank) {
+                        options += `<option value="${bank.id}">${bank.name}</option>`;
+                    });
+                    $("#bank").html(options);
+                },
+                error: function (xhr, status, error) {
+                    $("#errorAlert").text("Error loading banks: " + (xhr.responseText || error)).fadeIn();
+                    setTimeout(function () {
+                        $("#errorAlert").fadeOut();
+                    }, 5000);
+                }
+            });
+        }
+
+        // Initial load of countries for the form
+        loadBanks();
+        
+        // Function to load countries via AJAX
+         function loadCountries(selectedId) {
+            return $.ajax({
+                url: countryUrl,
+                type: "GET",
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                },
+                dataType: "json",
+                success: function (data) {
+                    countriesData = data.results;
+                    var options = '<option value="">-- Select Bank Country --</option>';
+                    data.results.forEach(function (country) {
+                        options += `<option value="${country.id}">${country.name}</option>`;
+                    });
+                    $("#bank_country").html(options);
+                },
+                error: function (xhr, status, error) {
+                    $("#errorAlert").text("Error loading countries: " + (xhr.responseText || error)).fadeIn();
+                    setTimeout(function () {
+                        $("#errorAlert").fadeOut();
+                    }, 5000);
+                }
+            });
+        }
+
+        // Initial load of countries for the form
+        loadCountries();
+
+        // Initialize the Kendo UI Grid
+        var grid = $("#grid").kendoGrid({
+            dataSource: {
+                transport: {
+                    read: {
+                        url: baseUrl,
+                        dataType: "json",
+                        type: "GET",
+                        beforeSend: function(xhr) {
+                            xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                        },
+                    },
+                    update: {
+                        url: function (data) {
+                            return baseUrl + data.id + "/";
+                        },
+                        dataType: "json",
+                        type: "PATCH",
+                        contentType: "application/json"
+                    },
+                    // Removed the destroy transport to avoid conflicts with custom delete function
+                    parameterMap: function (options, operation) {
+                        if (operation === "read") {
+                            var params = {};
+                            // Handle pagination
+                            params.take = options.take;
+                            params.skip = options.skip;
+
+                            // Handle global search
+                            if (options.search && options.search.value) {
+                                params.search = options.search.value;
+                            }
+
+                            // Handle filters
+                            if (options.filter) {
+                                options.filter.filters.forEach(function (filter) {
+                                    if (filter.operator === "contains") {
+                                        params.search = filter.value;
+                                    } else if (filter.operator === "eq") {
+                                        params[filter.field] = filter.value;
+                                    }
+                                });
+                            }
+
+                            // Handle sorting
+                            if (options.sort && options.sort.length > 0) {
+                                var ordering = options.sort.map(function (s) {
+                                    return s.dir === "desc" ? "-" + s.field : s.field;
+                                }).join(",");
+                                params.ordering = ordering;
+                            }
+
+                            return params;
+                        }
+
+                        if (operation === "update") {
+                            return JSON.stringify({
+                                status: options.status,
+                                is_active: options.is_active
+                            });
+                        }
+
+                        return options;
+                    }
+                },
+                schema: {
+                    data: "results",
+                    total: "total",
+                    model: {
+                        id: "id",
+                        fields: {
+                            id: { editable: false, nullable: true },
+                            employee: { 
+                                editable: false,
+                                defaultValue: null,
+                                validation: { required: true },
+                                // Represented as country ID
+                            },
+                            bank: { 
+                                editable: false,
+                                defaultValue: null,
+                                validation: { required: true },
+                                // Represented as country ID
+                            },
+                            bank_ac_no: {  editable: false,type: "string", validation: { required: true } },
+                           
+                            status: { type: "string" },
+                            is_active: { type: "boolean" }
+                        }
+                    }
+                },
+                pageSize: 5,
+                serverPaging: true,
+                serverFiltering: true,
+                serverSorting: true
+            },
+            pageable: {
+                refresh: true,
+                pageSizes: [5, 10, 20],
+                buttonCount: 5
+            },
+            sortable: true,
+            filterable: {
+                mode: "row",
+                operators: {
+                    string: {
+                        contains: "Contains",
+                        eq: "Is equal to"
+                    },
+                    boolean: {
+                        eq: "Is equal to"
+                    }
+                }
+            },
+            toolbar: [
+                { name: "save", text: "Save Changes" },
+                { name: "cancel", text: "Cancel Changes" }
+            ],
+            editable: "incell",
+            columns: [
+                { field: "employee", title: "Employee", template: function(dataItem) {
+                    var employee = employeesData.find(e => e.id === dataItem.employee);
+                    return employee ? employee.first_name : "N/A";
+                }, filterable: employeeFilter },
+                { field: "bank", title: "Bank", template: function(dataItem) {
+                    var bank = banksData.find(b => b.id === dataItem.bank);
+                    return bank ? bank.name : "N/A";
+                }, filterable: bankFilter },
+                { field: "bank_ac_no", title: "bank Ac No" },
+                { 
+                    field: "status", 
+                    title: "Status", 
+                    width: "150px",
+                    editor: statusEditor,
+                    template: "#= status ? status.charAt(0).toUpperCase() + status.slice(1) : '' #",
+                    filterable: {
+                        ui: statusFilter
+                    }
+                },
+                { 
+                    field: "is_active", 
+                    title: "Active", 
+                    width: "80px",
+                    editor: toggleEditor,
+                    template: "#= is_active ? 'Yes' : 'No' #",
+                    filterable: {
+                        ui: activeFilter
+                    }
+                },
+                {
+                    command: [
+                        {
+                            name: "edit",
+                            text: "<i class='fas fa-edit'></i>",
+                            click: editemployeeBank
+                        },
+                        {
+                            name: "customDelete", // Custom delete command
+                            text: "<i class='fas fa-trash-alt'></i>",
+                            click: deleteemployeeBank
+                        }
+                    ],
+                    title: "&nbsp;",
+                    width: "150px"
+                }
+            ]
+        }).data("kendoGrid");
+
+        // Custom editor for "status" field
+        function statusEditor(container, options) {
+            $('<input required data-text-field="text" data-value-field="value" data-bind="value:status" />')
+                .appendTo(container)
+                .kendoDropDownList({
+                    dataSource: statusOptions
+                });
+        }
+
+        // Custom editor for "is_active" field
+        function toggleEditor(container, options) {
+            $('<input type="checkbox" name="is_active" data-type="boolean" data-bind="checked:is_active" />')
+                .appendTo(container);
+        }
+
+        
+        // Filter UI for "status" field
+        function statusFilter(element) {
+            element.kendoDropDownList({
+                dataSource: statusOptions,
+                optionLabel: "--Select Status--"
+            });
+        }
+
+        // Filter UI for "is_active" field
+        function activeFilter(element) {
+            element.kendoDropDownList({
+                dataSource: [
+                    { text: "Yes", value: true },
+                    { text: "No", value: false }
+                ],
+                optionLabel: "--Select Active--"
+            });
+        }
+
+        // Filter UI for "employee" field
+        function employeeFilter(element) {
+            element.kendoDropDownList({
+                dataSource: employeesData,
+                dataTextField: "first_name",
+                dataValueField: "id",
+                optionLabel: "--Select Employee--"
+            });
+        }
+        // Filter UI for "bank" field
+        function bankFilter(element) {
+            element.kendoDropDownList({
+                dataSource: banksData,
+                dataTextField: "name",
+                dataValueField: "id",
+                optionLabel: "--Select Bank--"
+            });
+        }
+
+        // Global Search Functionality
+        $("#globalSearch").keyup(function () {
+            var value = $(this).val();
+            if (value) {
+                grid.dataSource.filter({
+                    logic: "or",
+                    filters: [
+                        { field: "bank_ac_no", operator: "contains", value: value },
+                        { field: "status", operator: "contains", value: value },
+                        { field: "employee", operator: "eq", value: getEmployeeIdByName(value) },
+                        { field: "bank", operator: "eq", value: getBankIdByName(value) },
+                        { field: "is_active", operator: "eq", value: value.toLowerCase() === "yes" || value.toLowerCase() === "true" }
+                    ]
+                });
+            } else {
+                grid.dataSource.filter({});
+            }
+        });
+
+        // Handle Add New Employee Bank Button Click
+        $("#addemployeeBankBtn").click(function () {
+            resetForm();
+            isEditing = false; // Set to add mode
+            $("#employeeBankModalLabel").text("Create New Employee Bank");
+            $("#submitBtn").text("Create");
+            $("#employeeBankModal").modal("show");
+        });
+
+        // Handle Edit Button Click
+        function editemployeeBank(e) {
+            e.preventDefault();
+            var dataItem = grid.dataItem($(e.currentTarget).closest("tr"));
+
+            // Populate the form with dataItem
+            $("#employeeBankId").val(dataItem.id);
+            $("#employee").val(dataItem.employee);
+            $("#bank").val(dataItem.bank);
+            $("#bank_ac_no").val(dataItem.bank_ac_no);
+            $("#bank_ac_IFSC").val(dataItem.bank_ac_IFSC);
+            $("#bank_country").val(dataItem.bank_country);
+            $("#status").val(dataItem.status);
+            $("#is_active").prop("checked", dataItem.is_active);
+
+            isEditing = true; // Set to edit mode
+            $("#employeeBankModalLabel").text("Edit Employee Bank");
+            $("#submitBtn").text("Update");
+            $("#employeeBankModal").modal("show");
+        }
+
+        // Handle Delete Button Click
+        function deleteemployeeBank(e) {
+            e.preventDefault();
+            var grid = $("#grid").data("kendoGrid");
+            var dataItem = grid.dataItem($(e.currentTarget).closest("tr"));
+
+            if (confirm("Are you sure you want to delete this employee bank?")) {
+                // Show overlay
+                $(".overlay").show();
+
+                $.ajax({
+                    url: baseUrl + dataItem.id + "/",
+                    type: "DELETE",
+                    beforeSend: function(xhr) {
+                        xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                    },
+                    success: function () {
+                        $("#successAlert").text("Employee Bank deleted successfully.").fadeIn();
+                        grid.dataSource.read();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#successAlert").fadeOut();
+                        }, 3000);
+                    },
+                    error: function (xhr, status, error) {
+                        $("#errorAlert").text("Error deleting employee bank: " + (xhr.responseText || error)).fadeIn();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#errorAlert").fadeOut();
+                        }, 5000);
+                    }
+                });
+            }
+        }
+
+        // Reset Form Function
+        function resetForm() {
+            $("#employeeBankForm")[0].reset();
+            $("#employeeBankForm").removeClass("was-validated");
+            $("#employeeBankId").val("");
+            $("#is_active").prop("checked", false);
+            $("#employee").val("");
+            $("#bank").val("");
+        }
+
+        // Handle Form Submission for Create and Update
+        $('#employeeBankForm').on('submit', function (e) {
+            e.preventDefault();
+
+            var form = this;
+            var formData = new FormData(form);
+            var employeeBankId = $("#employeeBankId").val();
+            var isActive = $('#is_active').is(':checked');
+            formData.set("is_active", isActive);
+
+            // Check form validity
+            var isValid = form.checkValidity();
+
+            if (isValid) {
+                // Show overlay
+                $(".overlay").show();
+
+                // Hide alerts
+                $("#successAlert").hide();
+                $("#errorAlert").hide();
+
+                // Determine the request type
+                var requestType = employeeBankId ? "PATCH" : "POST";
+                var requestUrl = employeeBankId ? baseUrl + employeeBankId + "/" : baseUrl;
+
+                $.ajax({
+                    url: requestUrl,
+                    type: requestType,
+                    beforeSend: function(xhr) {
+                        xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                    },
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (response) {
+                        $("#successAlert").text(employeeBankId ? "Employee Bank updated successfully." : "Employee bank created successfully.").fadeIn();
+                        $("#employeeBankModal").modal("hide");
+                        grid.dataSource.read();
+                        resetForm();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#successAlert").fadeOut();
+                        }, 3000);
+                    },
+                    error: function (xhr, status, error) {
+                        $("#errorAlert").text("Error: " + (xhr.responseText || error)).fadeIn();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#errorAlert").fadeOut();
+                        }, 5000);
+                    }
+                });
+            } else {
+                e.stopPropagation();
+                $(form).addClass('was-validated');
+            }
+        });
+
+        // Reset form when modal is closed
+        $('#employeeBankModal').on('hidden.bs.modal', function () {
+            resetForm();
+            $("#employeeBankModalLabel").text("Create New Employee Bank");
+            $("#submitBtn").text("Submit");
+        });
+    });
+</script>
+{% endblock extra_js %}

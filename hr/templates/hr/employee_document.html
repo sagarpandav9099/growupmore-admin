@@ -1,0 +1,807 @@
+{% extends "base.html" %}
+
+{% block title %}
+<title>Employee Document Management</title>
+{% endblock title %}
+
+{% block content %}
+<!-- Global Search Bar and Add Button -->
+<div class="d-flex justify-content-between mb-3">
+    <input type="text" id="globalSearch" placeholder="Search..." style="width: 200px;" class="form-control" />
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#employeeDocumentModal" id="addemployeeDocumentBtn">
+        Add New Employee Document
+    </button>
+</div>
+
+<!-- Success Alert -->
+<div class="alert alert-success alert-dismissible fade show" role="alert" id="successAlert">
+    <strong>Success!</strong> Operation completed successfully.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
+<!-- Error Alert -->
+<div class="alert alert-danger alert-dismissible fade show" role="alert" id="errorAlert">
+    <strong>Error!</strong> An error occurred.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
+<!-- Kendo UI Grid -->
+<div id="grid"></div>
+
+<!-- Overlay Spinner -->
+<div class="overlay">
+    <div class="spinner-container">
+        <div class="spinner-border text-light" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap Modal for Create/Edit -->
+<div class="modal fade" id="employeeDocumentModal" tabindex="-1" aria-labelledby="employeeDocumentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="employeeDocumentModalLabel">Create New Employee Document</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="employeeDocumentForm" enctype="multipart/form-data" novalidate>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="employee" class="form-label">Employee:</label>
+                            <select class="form-select" id="employee" name="employee" required>
+                                <option value="">-- Select Employee --</option>
+                            </select>
+                            <div class="invalid-feedback">Please select an employee.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="document_type" class="form-label">Document Type:</label>
+                            <select class="form-select" id="document_type" name="document_type" required>
+                                <option value="">-- Select Document Type --</option>
+                            </select>
+                            <div class="invalid-feedback">Please select a document type.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="document" class="form-label">Document:</label>
+                            <select class="form-select" id="document" name="document" required>
+                                <option value="">-- Select Document --</option>
+                            </select>
+                            <div class="invalid-feedback">Please select a document.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="document_image" class="form-label">Document Image:</label>
+                            <input type="file" class="form-control" id="document_image" name="document_image" required>
+                            <div class="invalid-feedback">Please upload a document image.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="document_number" class="form-label">Document Number:</label>
+                            <input type="text" class="form-control" id="document_number" name="document_number" required>
+                            <div class="invalid-feedback">Please enter a valid document number.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="issue_date" class="form-label">Issue Date:</label>
+                            <input type="date" class="form-control" id="issue_date" name="issue_date" required>
+                            <div class="invalid-feedback">Please enter a valid issue date.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="expiry_date" class="form-label">Expiry Date:</label>
+                            <input type="date" class="form-control" id="expiry_date" name="expiry_date">
+                            <div class="invalid-feedback">Please enter a valid expiry date.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="issue_country" class="form-label">Issue Country:</label>
+                            <select class="form-select" id="issue_country" name="issue_country" required>
+                                <option value="">-- Select Country --</option>
+                            </select>
+                            <div class="invalid-feedback">Please select a country.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="issue_state" class="form-label">Issue State:</label>
+                            <select class="form-select" id="issue_state" name="issue_state" required>
+                                <option value="">-- Select State --</option>
+                            </select>
+                            <div class="invalid-feedback">Please select a state.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="issue_city" class="form-label">Issue City:</label>
+                            <select class="form-select" id="issue_city" name="issue_city" required>
+                                <option value="">-- Select City --</option>
+                            </select>
+                            <div class="invalid-feedback">Please select a city.</div>
+                        </div>
+                   
+                    
+                        <div class="col-md-6">
+                            <label for="status" class="form-label">Status:</label>
+                            <select class="form-select" id="status" name="status" required>
+                                <option value="draft" selected>Draft</option>
+                                <option value="review">Review</option>
+                                <option value="published">Published</option>
+                            </select>
+                            <div class="invalid-feedback">Please select a status.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Active:</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_active" name="is_active">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <input type="hidden" id="employeeDocumentId" name="id" />
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">Submit</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function () {
+        // Define the Base URL once
+        var baseUrl = "https://13.60.105.3/api/hr/employee-documents/";
+        var employeeUrl = "https://13.60.105.3/api/hr/employees/";
+        var countryUrl = "https://13.60.105.3/api/master/countries/";
+        var stateUrl = "https://13.60.105.3/api/master/states/";
+        var cityUrl = "https://13.60.105.3/api/master/cities/";
+        var documentUrl = "https://13.60.105.3/api/master/documents/";
+        var document_typeUrl = "https://13.60.105.3/api/master/document-types/";
+
+        var isEditing = false; // Flag to determine add or edit mode
+
+        // Define the status options
+        var statusOptions = [
+            { text: "Draft", value: "draft" },
+            { text: "Review", value: "review" },
+            { text: "Published", value: "published" }
+        ];
+
+        var countriesData = []; // Store country data
+        var statesData = {};    // Store state data by country ID
+        var citiesData = {};  
+        var employeesData = [];
+        var document_typesData = [];  
+        // Function to load countries via AJAX
+        function loadEmployees(selectedId) {
+            return $.ajax({
+                url: employeeUrl,
+                type: "GET",
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                },
+                dataType: "json",
+                success: function (data) {
+                    employeesData = data.results;
+                    var options = '<option value="">-- Select Employee --</option>';
+                    data.results.forEach(function (employee) {
+                        options += `<option value="${employee.id}">${employee.first_name} ${employee.last_name}</option>`;
+                    });
+                    $("#employee").html(options);
+                },
+                error: function (xhr, status, error) {
+                    $("#errorAlert").text("Error loading employees: " + (xhr.responseText || error)).fadeIn();
+                    setTimeout(function () {
+                        $("#errorAlert").fadeOut();
+                    }, 5000);
+                }
+            });
+        }
+
+        // Initial load of countries for the form
+        loadEmployees();
+         // Function to load countries
+         function loadCountries(selectedId) {
+            return $.ajax({
+                url: countryUrl,
+                type: "GET",
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                },
+                dataType: "json",
+                success: function (data) {
+                    countriesData = data.results;
+                    var options = '<option value="">-- Select Country --</option>';
+                    countriesData.forEach(function (country) {
+                        options += `<option value="${country.id}">${country.name}</option>`;
+                    });
+                    $("#country").html(options);
+                    if (selectedId) {
+                        $("#country").val(selectedId).change();
+                    }
+                },
+                error: function (xhr, status, error) {
+                    $("#errorAlert").text("Error loading countries: " + (xhr.responseText || error)).fadeIn();
+                    setTimeout(function () {
+                        $("#errorAlert").fadeOut();
+                    }, 5000);
+                }
+            });
+        }
+
+        // Function to load states based on selected country
+        function loadStates(countryId, selectedId) {
+            if (!countryId) {
+                $("#state").html('<option value="">-- Select State --</option>');
+                return;
+            }
+
+            // Use cached data if available
+            if (statesData[countryId]) {
+                populateStates(statesData[countryId], selectedId);
+                return;
+            }
+
+            $.ajax({
+                url: stateUrl,
+                type: "GET",
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                },
+                dataType: "json",
+                data: { country: countryId },
+                success: function (data) {
+                    statesData[countryId] = data.results;
+                    populateStates(data.results, selectedId);
+                },
+                error: function (xhr, status, error) {
+                    $("#errorAlert").text("Error loading states: " + (xhr.responseText || error)).fadeIn();
+                    setTimeout(function () {
+                        $("#errorAlert").fadeOut();
+                    }, 5000);
+                }
+            });
+        }
+
+        // Function to populate states dropdown
+        function populateStates(states, selectedId) {
+            var options = '<option value="">-- Select State --</option>';
+            states.forEach(function (state) {
+                options += `<option value="${state.id}">${state.name}</option>`;
+            });
+            $("#state").html(options);
+            if (selectedId) {
+                $("#state").val(selectedId).change();
+            }
+        }
+
+        // Function to load cities based on selected state
+        function loadCities(stateId, selectedId) {
+            if (!stateId) {
+                $("#city").html('<option value="">-- Select City --</option>');
+                return;
+            }
+
+            // Use cached data if available
+            if (citiesData[stateId]) {
+                populateCities(citiesData[stateId], selectedId);
+                return;
+            }
+
+            $.ajax({
+                url: cityUrl,
+                type: "GET",
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                },
+                dataType: "json",
+                data: { state: stateId },
+                success: function (data) {
+                    citiesData[stateId] = data.results;
+                    populateCities(data.results, selectedId);
+                },
+                error: function (xhr, status, error) {
+                    $("#errorAlert").text("Error loading cities: " + (xhr.responseText || error)).fadeIn();
+                    setTimeout(function () {
+                        $("#errorAlert").fadeOut();
+                    }, 5000);
+                }
+            });
+        }
+
+        // Function to populate cities dropdown
+        function populateCities(cities, selectedId) {
+            var options = '<option value="">-- Select City --</option>';
+            cities.forEach(function (city) {
+                options += `<option value="${city.id}">${city.name}</option>`;
+            });
+            $("#city").html(options);
+            if (selectedId) {
+                $("#city").val(selectedId);
+            }
+        }
+
+        loadCountries();
+
+        // Handle country change to load states
+        $("#country").change(function () {
+            var countryId = $(this).val();
+            loadStates(countryId);
+        });
+
+        // Handle state change to load cities
+        $("#state").change(function () {
+            var stateId = $(this).val();
+            loadCities(stateId);
+        });
+       
+         // Function to load countries via AJAX
+         function loadDocumentTypes(selectedId) {
+            return $.ajax({
+                url: document_typeUrl,
+                type: "GET",
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                },
+                dataType: "json",
+                success: function (data) {
+                    document_typeData = data.results;
+                    var options = '<option value="">-- Select Document Type --</option>';
+                    data.results.forEach(function (document_type) {
+                        options += `<option value="${document_type.id}">${document_type.type}</option>`;
+                    });
+                    $("#document_type").html(options);
+
+                    // Also populate country dropdown in grid editor
+                    // Assuming grid editor is re-initialized after countries are loaded
+                },
+                error: function (xhr, status, error) {
+                    $("#errorAlert").text("Error loading document type: " + (xhr.responseText || error)).fadeIn();
+                    setTimeout(function () {
+                        $("#errorAlert").fadeOut();
+                    }, 5000);
+                }
+            });
+        }
+
+        // Function to load states based on selected country
+        function loadDocuments(document_typeId, callback) {
+            if (!document_typeId) {
+                $("#document").html('<option value="">-- Select Document --</option>');
+                if (callback) callback();
+                return;
+            }
+
+            // Check if states for this country are already loaded
+            if (documentsData[documentId]) {
+                populateDocuments(documentsData[document_typeId]);
+                if (callback) callback();
+                return;
+            }
+
+            $.ajax({
+                url: documentUrl,
+                type: "GET",
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                },
+                dataType: "json",
+                data: { document_type: document_typeId },
+                success: function (data) {
+                    documentsData[document_typeId] = data.results;
+                    populateDocuments(data.results);
+                    if (callback) callback();
+                },
+                error: function (xhr, status, error) {
+                    $("#errorAlert").text("Error loading Document: " + (xhr.responseText || error)).fadeIn();
+                    setTimeout(function () {
+                        $("#errorAlert").fadeOut();
+                    }, 5000);
+                }
+            });
+        }
+
+        // Function to populate states dropdown
+        function populateDocuments(states) {
+            var options = '<option value="">-- Select document_image --</option>';
+            states.forEach(function (state) {
+                options += `<option value="${document.id}">${document.name}</option>`;
+            });
+            $("#document").html(options);
+        }
+
+        // Initial load of countries for the form
+        loadDocumentTypes();
+
+        // Handle country change to load states
+        $("#document_type").change(function () {
+            var document_typeId = $(this).val();
+            loadDocuments(document_typeId);
+        });
+        // Initialize the Kendo UI Grid
+        var grid = $("#grid").kendoGrid({
+            dataSource: {
+                transport: {
+                    read: {
+                        url: baseUrl,
+                        dataType: "json",
+                        type: "GET",
+                        beforeSend: function(xhr) {
+                            xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                        },
+                    },
+                    update: {
+                        url: function (data) {
+                            return baseUrl + data.id + "/";
+                        },
+                        dataType: "json",
+                        type: "PATCH",
+                        contentType: "application/json"
+                    },
+                    // Removed the destroy transport to avoid conflicts with custom delete function
+                    parameterMap: function (options, operation) {
+                        if (operation === "read") {
+                            var params = {};
+                            // Handle pagination
+                            params.take = options.take;
+                            params.skip = options.skip;
+
+                            // Handle global search
+                            if (options.search && options.search.value) {
+                                params.search = options.search.value;
+                            }
+
+                            // Handle filters
+                            if (options.filter) {
+                                options.filter.filters.forEach(function (filter) {
+                                    if (filter.operator === "contains") {
+                                        params.search = filter.value;
+                                    } else if (filter.operator === "eq") {
+                                        params[filter.field] = filter.value;
+                                    }
+                                });
+                            }
+
+                            // Handle sorting
+                            if (options.sort && options.sort.length > 0) {
+                                var ordering = options.sort.map(function (s) {
+                                    return s.dir === "desc" ? "-" + s.field : s.field;
+                                }).join(",");
+                                params.ordering = ordering;
+                            }
+
+                            return params;
+                        }
+
+                        if (operation === "update") {
+                            return JSON.stringify({
+                                status: options.status,
+                                is_active: options.is_active
+                            });
+                        }
+
+                        return options;
+                    }
+                },
+                schema: {
+                    data: "results",
+                    total: "total",
+                    model: {
+                        id: "id",
+                        fields: {
+                            id: { editable: false, nullable: true },
+                            employee: { 
+                                editable: false,
+                                defaultValue: null,
+                                validation: { required: true },
+                                // Represented as country ID
+                            },
+                            Document: { 
+                                editable: false,
+                                defaultValue: null,
+                                validation: { required: true },
+                                // Represented as country ID
+                            },
+                            document_number: {  editable: false,type: "string", validation: { required: true } },
+                            document_image:  { type: "string", editable: false },
+                            status: { type: "string" },
+                            is_active: { type: "boolean" }
+                        }
+                    }
+                },
+                pageSize: 5,
+                serverPaging: true,
+                serverFiltering: true,
+                serverSorting: true
+            },
+            pageable: {
+                refresh: true,
+                pageSizes: [5, 10, 20],
+                buttonCount: 5
+            },
+            sortable: true,
+            filterable: {
+                mode: "row",
+                operators: {
+                    string: {
+                        contains: "Contains",
+                        eq: "Is equal to"
+                    },
+                    boolean: {
+                        eq: "Is equal to"
+                    }
+                }
+            },
+            toolbar: [
+                { name: "save", text: "Save Changes" },
+                { name: "cancel", text: "Cancel Changes" }
+            ],
+            editable: "incell",
+            columns: [
+                { field: "employee", title: "Employee", template: function(dataItem) {
+                    var employee = employeesData.find(e => e.id === dataItem.employee);
+                    return employee ? employee.first_name : "N/A";
+                }, filterable: employeeFilter },
+
+                { field: "document", title: "Document", template: function(dataItem) {
+                    var document = documentsData.find(d => d.id === dataItem.document);
+                    return document ? document.name : "N/A";
+                }, filterable: documentFilter },
+                {
+                    field: "document_image",
+                    title: "Flag",
+                    width: "100px",
+                    sortable: false,
+                    filterable: false,
+                    template: "<img src='#= document_image #' alt='Image' style='width: 32px; height: 32px;' />"
+                },
+                { field: "document_number", title: "Document Number" },
+                { 
+                    field: "status", 
+                    title: "Status", 
+                    width: "150px",
+                    editor: statusEditor,
+                    template: "#= status ? status.charAt(0).toUpperCase() + status.slice(1) : '' #",
+                    filterable: {
+                        ui: statusFilter
+                    }
+                },
+                { 
+                    field: "is_active", 
+                    title: "Active", 
+                    width: "80px",
+                    editor: toggleEditor,
+                    template: "#= is_active ? 'Yes' : 'No' #",
+                    filterable: {
+                        ui: activeFilter
+                    }
+                },
+                {
+                    command: [
+                        {
+                            name: "edit",
+                            text: "<i class='fas fa-edit'></i>",
+                            click: editemployeeBank
+                        },
+                        {
+                            name: "customDelete", // Custom delete command
+                            text: "<i class='fas fa-trash-alt'></i>",
+                            click: deleteemployeeBank
+                        }
+                    ],
+                    title: "&nbsp;",
+                    width: "150px"
+                }
+            ]
+        }).data("kendoGrid");
+
+        // Custom editor for "status" field
+        function statusEditor(container, options) {
+            $('<input required data-text-field="text" data-value-field="value" data-bind="value:status" />')
+                .appendTo(container)
+                .kendoDropDownList({
+                    dataSource: statusOptions
+                });
+        }
+
+        // Custom editor for "is_active" field
+        function toggleEditor(container, options) {
+            $('<input type="checkbox" name="is_active" data-type="boolean" data-bind="checked:is_active" />')
+                .appendTo(container);
+        }
+
+        
+        // Filter UI for "status" field
+        function statusFilter(element) {
+            element.kendoDropDownList({
+                dataSource: statusOptions,
+                optionLabel: "--Select Status--"
+            });
+        }
+
+        // Filter UI for "is_active" field
+        function activeFilter(element) {
+            element.kendoDropDownList({
+                dataSource: [
+                    { text: "Yes", value: true },
+                    { text: "No", value: false }
+                ],
+                optionLabel: "--Select Active--"
+            });
+        }
+
+        // Filter UI for "employee" field
+        function employeeFilter(element) {
+            element.kendoDropDownList({
+                dataSource: employeesData,
+                dataTextField: "first_name",
+                dataValueField: "id",
+                optionLabel: "--Select Employee--"
+            });
+        }
+        // Filter UI for "bank" field
+        function bankFilter(element) {
+            element.kendoDropDownList({
+                dataSource: banksData,
+                dataTextField: "name",
+                dataValueField: "id",
+                optionLabel: "--Select Bank--"
+            });
+        }
+
+        // Global Search Functionality
+        $("#globalSearch").keyup(function () {
+            var value = $(this).val();
+            if (value) {
+                grid.dataSource.filter({
+                    logic: "or",
+                    filters: [
+                        { field: "bank_ac_no", operator: "contains", value: value },
+                        { field: "status", operator: "contains", value: value },
+                        { field: "employee", operator: "eq", value: getEmployeeIdByName(value) },
+                        { field: "bank", operator: "eq", value: getBankIdByName(value) },
+                        { field: "is_active", operator: "eq", value: value.toLowerCase() === "yes" || value.toLowerCase() === "true" }
+                    ]
+                });
+            } else {
+                grid.dataSource.filter({});
+            }
+        });
+
+        // Handle Add New Employee Bank Button Click
+        $("#addemployeeBankBtn").click(function () {
+            resetForm();
+            isEditing = false; // Set to add mode
+            $("#employeeBankModalLabel").text("Create New Employee Bank");
+            $("#submitBtn").text("Create");
+            $("#employeeBankModal").modal("show");
+        });
+
+        // Handle Edit Button Click
+        function editemployeeBank(e) {
+            e.preventDefault();
+            var dataItem = grid.dataItem($(e.currentTarget).closest("tr"));
+
+            // Populate the form with dataItem
+            $("#employeeBankId").val(dataItem.id);
+            $("#employee").val(dataItem.employee);
+            $("#bank").val(dataItem.bank);
+            $("#bank_ac_no").val(dataItem.bank_ac_no);
+            $("#bank_ac_IFSC").val(dataItem.bank_ac_IFSC);
+            $("#bank_country").val(dataItem.bank_country);
+            $("#status").val(dataItem.status);
+            $("#is_active").prop("checked", dataItem.is_active);
+
+            isEditing = true; // Set to edit mode
+            $("#employeeBankModalLabel").text("Edit Employee Bank");
+            $("#submitBtn").text("Update");
+            $("#employeeBankModal").modal("show");
+        }
+
+        // Handle Delete Button Click
+        function deleteemployeeBank(e) {
+            e.preventDefault();
+            var grid = $("#grid").data("kendoGrid");
+            var dataItem = grid.dataItem($(e.currentTarget).closest("tr"));
+
+            if (confirm("Are you sure you want to delete this employee bank?")) {
+                // Show overlay
+                $(".overlay").show();
+
+                $.ajax({
+                    url: baseUrl + dataItem.id + "/",
+                    type: "DELETE",
+                    beforeSend: function(xhr) {
+                        xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                    },
+                    success: function () {
+                        $("#successAlert").text("Employee Bank deleted successfully.").fadeIn();
+                        grid.dataSource.read();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#successAlert").fadeOut();
+                        }, 3000);
+                    },
+                    error: function (xhr, status, error) {
+                        $("#errorAlert").text("Error deleting employee bank: " + (xhr.responseText || error)).fadeIn();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#errorAlert").fadeOut();
+                        }, 5000);
+                    }
+                });
+            }
+        }
+
+        // Reset Form Function
+        function resetForm() {
+            $("#employeeBankForm")[0].reset();
+            $("#employeeBankForm").removeClass("was-validated");
+            $("#employeeBankId").val("");
+            $("#is_active").prop("checked", false);
+            $("#employee").val("");
+            $("#bank").val("");
+        }
+
+        // Handle Form Submission for Create and Update
+        $('#employeeBankForm').on('submit', function (e) {
+            e.preventDefault();
+
+            var form = this;
+            var formData = new FormData(form);
+            var employeeBankId = $("#employeeBankId").val();
+            var isActive = $('#is_active').is(':checked');
+            formData.set("is_active", isActive);
+
+            // Check form validity
+            var isValid = form.checkValidity();
+
+            if (isValid) {
+                // Show overlay
+                $(".overlay").show();
+
+                // Hide alerts
+                $("#successAlert").hide();
+                $("#errorAlert").hide();
+
+                // Determine the request type
+                var requestType = employeeBankId ? "PATCH" : "POST";
+                var requestUrl = employeeBankId ? baseUrl + employeeBankId + "/" : baseUrl;
+
+                $.ajax({
+                    url: requestUrl,
+                    type: requestType,
+                    beforeSend: function(xhr) {
+                        xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                    },
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (response) {
+                        $("#successAlert").text(employeeBankId ? "Employee Bank updated successfully." : "Employee bank created successfully.").fadeIn();
+                        $("#employeeBankModal").modal("hide");
+                        grid.dataSource.read();
+                        resetForm();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#successAlert").fadeOut();
+                        }, 3000);
+                    },
+                    error: function (xhr, status, error) {
+                        $("#errorAlert").text("Error: " + (xhr.responseText || error)).fadeIn();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#errorAlert").fadeOut();
+                        }, 5000);
+                    }
+                });
+            } else {
+                e.stopPropagation();
+                $(form).addClass('was-validated');
+            }
+        });
+
+        // Reset form when modal is closed
+        $('#employeeBankModal').on('hidden.bs.modal', function () {
+            resetForm();
+            $("#employeeBankModalLabel").text("Create New Employee Bank");
+            $("#submitBtn").text("Submit");
+        });
+    });
+</script>
+{% endblock extra_js %}

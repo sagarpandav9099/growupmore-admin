@@ -1,0 +1,459 @@
+{% extends "base.html" %}
+
+{% block title %}
+<title>Offer type Management</title>
+{% endblock title %}
+
+{% block content %}
+<!-- Global Search Bar and Add Button -->
+<div class="d-flex justify-content-between mb-3">
+    <input type="text" id="globalSearch" placeholder="Search..." style="width: 200px;" class="form-control" />
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#offerTypeModal" id="offerTypeBtn">
+        Add New Offer Type
+    </button>
+</div>
+
+<!-- Success Alert -->
+<div class="alert alert-success alert-dismissible fade show" role="alert" id="successAlert">
+    <strong>Success!</strong> Operation completed successfully.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
+<!-- Error Alert -->
+<div class="alert alert-danger alert-dismissible fade show" role="alert" id="errorAlert">
+    <strong>Error!</strong> An error occurred.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
+<!-- Kendo UI Grid -->
+<div id="grid"></div>
+
+<!-- Overlay Spinner -->
+<div class="overlay">
+    <div class="spinner-container">
+        <div class="spinner-border text-light" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Create/Edit FAQ Category -->
+<div class="modal fade" id="offerTypeModal" tabindex="-1" aria-labelledby="offerTypeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="offerTypeModalLabel">Create New Offer Type</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="offerTypeForm" novalidate>
+                    <!-- Basic Information -->
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label for="type" class="form-label">Type:</label>
+                            <input type="text" class="form-control" id="type" name="type" required minlength="2" maxlength="50">
+                            <div class="invalid-feedback">Please enter a valid type (2-50 characters).</div>
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <label for="description" class="form-label">Description:</label>
+                            <input type="text" class="form-control" id="description" name="description" maxlength="100">
+                            <div class="invalid-feedback">Please enter a valid description (up to 100 characters).</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="status" class="form-label">Status:</label>
+                            <select class="form-select" id="status" name="status" required>
+                                <option value="draft" selected>Draft</option>
+                                <option value="review">Review</option>
+                                <option value="published">Published</option>
+                            </select>
+                            <div class="invalid-feedback">Please select a status.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Active:</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_active" name="is_active">
+                                <label class="form-check-label" for="is_active">Yes/No</label>
+                            </div>
+                        </div>
+                    </div>
+                
+                    <!-- Submit Buttons -->
+                    <div class="modal-footer">
+                        <input type="hidden" id="offerTypeId" name="id" />
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">Submit</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+    // Define the capitalizeFirstLetter function globally
+    window.capitalizeFirstLetter = function(string) {
+        if (string) {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
+        return '';
+    };
+
+    $(document).ready(function () {
+        // Define the Base URL once
+        var baseUrl = "https://13.60.105.3/api/master/offer-types/";
+
+        var isEditing = false; // Flag to determine add or edit mode
+
+        // Define the status options
+        var statusOptions = [
+            { text: "Draft", value: "draft" },
+            { text: "Review", value: "review" },
+            { text: "Published", value: "published" }
+        ];
+
+        // Initialize the Kendo UI Grid
+        var grid = $("#grid").kendoGrid({
+            dataSource: {
+                transport: {
+                    read: {
+                        url: baseUrl,
+                        dataType: "json",
+                        type: "GET"
+                    },
+                    update: {
+                        url: function (data) {
+                            return baseUrl + data.id + "/";
+                        },
+                        dataType: "json",
+                        type: "PATCH",
+                        contentType: "application/json"
+                    },
+                    parameterMap: function (options, operation) {
+                        if (operation === "read") {
+                            var params = {};
+                            // Handle pagination
+                            params.take = options.take;
+                            params.skip = options.skip;
+
+                            // Handle global search
+                            if (options.search && options.search.value) {
+                                params.search = options.search.value;
+                            }
+
+                            // Handle filters
+                            if (options.filter) {
+                                options.filter.filters.forEach(function (filter) {
+                                    if (filter.operator === "contains") {
+                                        params.search = filter.value;
+                                    } else if (filter.operator === "eq") {
+                                        params[filter.field] = filter.value;
+                                    }
+                                });
+                            }
+
+                            // Handle sorting
+                            if (options.sort && options.sort.length > 0) {
+                                var ordering = options.sort.map(function (s) {
+                                    return s.dir === "desc" ? "-" + s.field : s.field;
+                                }).join(",");
+                                params.ordering = ordering;
+                            }
+
+                            return params;
+                        }
+
+                        if (operation === "update") {
+                            return JSON.stringify({
+                                status: options.status,
+                                is_active: options.is_active
+                            });
+                        }
+
+                        return options;
+                    }
+                },
+                schema: {
+                    data: "results",
+                    total: "total",
+                    model: {
+                        id: "id",
+                        fields: {
+                            id: { editable: false, nullable: true },
+                            type: { editable: false,type: "string", validation: { required: true } },
+                            description: { editable: false,type: "string" },
+                            status: { type: "string", validation: { required: true } },
+                            is_active: { type: "boolean" }
+                        }
+                    }
+                },
+                pageSize: 5,
+                serverPaging: true,
+                serverFiltering: true,
+                serverSorting: true
+            },
+            pageable: {
+                refresh: true,
+                pageSizes: [5, 10, 20],
+                buttonCount: 5
+            },
+            sortable: true,
+            filterable: {
+                mode: "row",
+                operators: {
+                    string: {
+                        contains: "Contains",
+                        eq: "Is equal to"
+                    },
+                    boolean: {
+                        eq: "Is equal to"
+                    }
+                }
+            },
+            toolbar: [
+                { name: "save", text: "Save Changes" },
+                { name: "cancel", text: "Cancel Changes" }
+            ],
+            editable: "incell",
+            columns: [
+            { field: "type", title: "Type" },
+            { field: "description", title: "Description" },
+                { 
+                    field: "status", 
+                    title: "Status", 
+                    width: "150px",
+                    editor: statusEditor,
+                    template: "#= status ? capitalizeFirstLetter(status) : '' #",
+                    filterable: {
+                        ui: statusFilter
+                    }
+                },
+                { 
+                    field: "is_active", 
+                    title: "Active", 
+                    width: "100px",
+                    editor: toggleEditor,
+                    template: "#= is_active ? 'Yes' : 'No' #",
+                    filterable: {
+                        ui: booleanFilter
+                    }
+                },
+                {
+                    command: [
+                        {
+                            name: "edit",
+                            text: "<i class='fas fa-edit'></i>",
+                            click: editofferType
+                        },
+                        {
+                            name: "customDelete", // Custom delete command
+                            text: "<i class='fas fa-trash-alt'></i>",
+                            click: deleteofferType
+                        }
+                    ],
+                    title: "&nbsp;",
+                    width: "150px"
+                }
+            ]
+        }).data("kendoGrid");
+
+        
+        // Custom editor for "status" field without optionLabel
+        function statusEditor(container, options) {
+            $('<select required data-bind="value:status"></select>')
+                .appendTo(container)
+                .kendoDropDownList({
+                    dataSource: statusOptions,
+                    dataTextField: "text",
+                    dataValueField: "value",
+                    // Removed optionLabel
+                    // Optionally, set a default value if needed
+                });
+        }
+
+        // Custom editor for boolean fields
+        function toggleEditor(container, options) {
+            $('<input type="checkbox" data-bind="checked:' + options.field + '" />')
+                .appendTo(container);
+        }
+
+        // Filter UI for "status" field without optionLabel
+        function statusFilter(element) {
+            element.kendoDropDownList({
+                dataSource: statusOptions,
+                dataTextField: "text",
+                dataValueField: "value",
+                // Removed optionLabel
+                // Optionally, set a default value if needed
+            });
+        }
+
+        // Filter UI for boolean fields
+        function booleanFilter(element) {
+            element.kendoDropDownList({
+                dataSource: [
+                    { text: "Yes", value: true },
+                    { text: "No", value: false }
+                ],
+                dataTextField: "text",
+                dataValueField: "value",
+                // Removed optionLabel
+                // Optionally, set a default value if needed
+            });
+        }
+
+        // Global Search Functionality
+        $("#globalSearch").keyup(function () {
+            var value = $(this).val();
+            if (value) {
+                grid.dataSource.filter({
+                    logic: "or",
+                    filters: [
+                        { field: "type", operator: "contains", value: value },
+                        { field: "description", operator: "contains", value: value },
+                        { field: "status", operator: "contains", value: value },
+                        { field: "is_active", operator: "eq", value: value.toLowerCase() === "yes" || value.toLowerCase() === "true" },
+                    ]
+                });
+            } else {
+                grid.dataSource.filter({});
+            }
+        });
+
+        // Handle Add New Offer Type Button Click
+        $("#addofferTypeBtn").click(function () {
+            resetForm();
+            isEditing = false; // Set to add mode
+            $("#offerTypeModalLabel").text("Create New Offer Type");
+            $("#submitBtn").text("Create");
+            $("#offerTypeModal").modal("show");
+        });
+
+        // Handle Edit Button Click
+        function editofferType(e) {
+            e.preventDefault();
+            var dataItem = grid.dataItem($(e.currentTarget).closest("tr"));
+
+            // Populate the form with dataItem
+            $("#offerTypeId").val(dataItem.id);
+            $("#type").val(dataItem.type);
+            $("#description").val(dataItem.description);
+            $("#status").val(dataItem.status);
+            $("#is_active").prop("checked", dataItem.is_active);
+
+            isEditing = true; // Set to edit mode
+            $("#offerTypeModalLabel").text("Edit Offer Type");
+            $("#submitBtn").text("Update");
+            $("#offerTypeModal").modal("show");
+        }
+
+        // Handle Delete Button Click
+        function deleteofferType(e) {
+            e.preventDefault();
+            var grid = $("#grid").data("kendoGrid");
+            var dataItem = grid.dataItem($(e.currentTarget).closest("tr"));
+
+            if (confirm("Are you sure you want to delete this offer type?")) {
+                // Show overlay
+                $(".overlay").show();
+
+                $.ajax({
+                    url: baseUrl + dataItem.id + "/",
+                    type: "DELETE",
+                    success: function () {
+                        $("#successAlert").text("Offer Type deleted successfully.").fadeIn();
+                        grid.dataSource.read();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#successAlert").fadeOut();
+                        }, 3000);
+                    },
+                    error: function (xhr, status, error) {
+                        $("#errorAlert").text("Error deleting Offer Type: " + (xhr.responseText || error)).fadeIn();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#errorAlert").fadeOut();
+                        }, 5000);
+                    }
+                });
+            }
+        }
+
+        // Reset Form Function
+        function resetForm() {
+            $("#offerTypeForm")[0].reset();
+            $("#offerTypeForm").removeClass("was-validated");
+            $("#offerTypeId").val("");
+            $("#is_active").prop("checked", false);
+        }
+
+        // Handle Form Submission for Create and Update
+        $('#offerTypeForm').on('submit', function (e) {
+            e.preventDefault();
+
+            var form = this;
+            var formData = {
+                type: $("#type").val(),
+                description: $("#description").val(),
+                status: $("#status").val(),
+                is_active: $('#is_active').is(':checked')
+            };
+            var offerTypeId = $("#offerTypeId").val();
+
+            // Check form validity
+            var isValid = form.checkValidity();
+            if (!isValid) {
+                e.stopPropagation();
+                $(form).addClass('was-validated');
+                return;
+            }
+
+            // Show overlay
+            $(".overlay").show();
+
+            // Hide alerts
+            $("#successAlert").hide();
+            $("#errorAlert").hide();
+
+            // Determine the request type and URL
+            var requestType = offerTypeId ? "PATCH" : "POST";
+            var requestUrl = offerTypeId ? baseUrl + offerTypeId + "/" : baseUrl;
+
+            $.ajax({
+                url: requestUrl,
+                type: requestType,
+                data: JSON.stringify(formData),
+                contentType: "application/json",
+                success: function (response) {
+                    $("#successAlert").text(offerTypeId ? "Offer Type updated successfully." : "Offer Type created successfully.").fadeIn();
+                    $("#offerTypeModal").modal("hide");
+                    grid.dataSource.read();
+                    resetForm();
+                    $(".overlay").hide();
+                    setTimeout(function () {
+                        $("#successAlert").fadeOut();
+                    }, 3000);
+                },
+                error: function (xhr, status, error) {
+                    $("#errorAlert").text("Error: " + (xhr.responseText || error)).fadeIn();
+                    $(".overlay").hide();
+                    setTimeout(function () {
+                        $("#errorAlert").fadeOut();
+                    }, 5000);
+                }
+            });
+        });
+
+        // Reset form when modal is closed
+        $('#offerTypeModal').on('hidden.bs.modal', function () {
+            resetForm();
+            $("#offerTypeModalLabel").text("Create New Offer Type");
+            $("#submitBtn").text("Submit");
+        });
+    });
+</script>
+{% endblock extra_js %}

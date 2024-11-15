@@ -1,0 +1,1018 @@
+{% extends "base.html" %}
+
+{% block title %}
+<title>Employee Management</title>
+{% endblock title %}
+
+{% block content %}
+<!-- Global Search Bar and Add Button -->
+<div class="d-flex justify-content-between mb-3">
+    <input type="text" id="globalSearch" placeholder="Search..." style="width: 200px;" class="form-control" />
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#employeeModal"
+        id="addEmployeeBtn">
+        Add New Employee
+    </button>
+</div>
+
+<!-- Success Alert -->
+<div class="alert alert-success alert-dismissible fade show" role="alert" id="successAlert">
+    <strong>Success!</strong> Operation completed successfully.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
+<!-- Error Alert -->
+<div class="alert alert-danger alert-dismissible fade show" role="alert" id="errorAlert">
+    <strong>Error!</strong> An error occurred.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
+<!-- Kendo UI Grid -->
+<div id="grid"></div>
+
+<!-- Overlay Spinner -->
+<div class="overlay">
+    <div class="spinner-container">
+        <div class="spinner-border text-light" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+</div>
+<!-- Bootstrap Modal for Create/Edit -->
+<div class="modal fade" id="employeeModal" tabindex="-1" aria-labelledby="employeeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="employeeModalLabel">Create New Employee</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="employeeForm" enctype="multipart/form-data" novalidate>
+                    <!-- Basic Information -->
+                    <div class="row g-3">
+                        <h5>Basic Information</h5>
+                        <div class="col-md-4">
+                            <label for="first_name" class="form-label">First Name:</label>
+                            <input type="text" class="form-control" id="first_name" name="first_name" required
+                                minlength="2" maxlength="40">
+                            <div class="invalid-feedback">Please enter a valid first name (2-40 characters).</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="last_name" class="form-label">Last Name:</label>
+                            <input type="text" class="form-control" id="last_name" name="last_name" required
+                                minlength="2" maxlength="40">
+                            <div class="invalid-feedback">Please enter a valid last name (2-40 characters).</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="dob" class="form-label">Date of Birth:</label>
+                            <input type="date" class="form-control" id="dob" name="dob" required>
+                            <div class="invalid-feedback">Please enter a valid date of birth.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="gender" class="form-label">Gender:</label>
+                            <select class="form-select" id="gender" name="gender" required>
+                                <option value="">-- Select Gender --</option>
+                                <option value="M">Male</option>
+                                <option value="F">Female</option>
+                                <option value="O">Other</option>
+                            </select>
+                            <div class="invalid-feedback">Please select a gender.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="nationality" class="form-label">Nationality:</label>
+                            <select class="form-select" id="nationality" name="nationality">
+                                <option value="">-- Select Nationality --</option>
+                                <!-- Options will be populated via AJAX -->
+                            </select>
+                            <div class="invalid-feedback">Please select a nationality.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="photo" class="form-label">Photo:</label>
+                            <input type="file" class="form-control" id="photo" name="photo" accept="image/png">
+                            <div class="invalid-feedback" id="photoFeedback">Please upload a valid PNG image under 200KB.</div>
+                        </div>
+                        
+                        
+                        <div class="col-md-8">
+                            <label for="description" class="form-label">Description:</label>
+                            <input type="text" class="form-control" id="description" name="description" maxlength="100">
+                            <div class="invalid-feedback">Please enter a valid description (up to 100 characters).</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Marital Status:</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="marital_status" name="marital_status">
+                                <label class="form-check-label" for="marital_status">Yes/No</label>
+                            </div>
+                            
+                        </div>
+                        <h5>Contact Information</h5>
+                        
+                        
+                        <div class="col-md-4">
+                            <label for="country" class="form-label">Country:</label>
+                            <select class="form-select" id="country" name="country" required>
+                                <!-- Options will be populated via JavaScript or backend code -->
+                            </select>
+                            <div class="invalid-feedback">Please select a country.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="state" class="form-label">State:</label>
+                            <select class="form-select" id="state" name="state" required>
+                                <!-- Options will be populated via JavaScript or backend code -->
+                            </select>
+                            <div class="invalid-feedback">Please select a state.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="city" class="form-label">City:</label>
+                            <select class="form-select" id="city" name="city" required>
+                                <!-- Options will be populated via JavaScript or backend code -->
+                            </select>
+                            <div class="invalid-feedback">Please select a city.</div>
+                        </div>
+                        <div class="col-md-12">
+                            <label for="address" class="form-label">Address:</label>
+                            <input type="address" class="form-control" id="address" name="address" required>
+                            <div class="invalid-feedback">Please enter a valid  address.</div>
+                        </div>
+                        <h5>Employment Information</h5>
+                        <div class="col-md-4">
+                            <label for="department" class="form-label">Department:</label>
+                            <select class="form-select" id="department" name="department" required>
+                                <!-- Options will be populated via JavaScript or backend code -->
+                            </select>
+                            <div class="invalid-feedback">Please select a department.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="designation" class="form-label">Designation:</label>
+                            <select class="form-select" id="designation" name="designation" required>
+                                <!-- Options will be populated via JavaScript or backend code -->
+                            </select>
+                            <div class="invalid-feedback">Please select a city.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="manager" class="form-label">Manager:</label>
+                            <select class="form-select" id="manager" name="manager">
+                                <!-- Options will be populated via JavaScript or backend code -->
+                            </select>
+                            <div class="invalid-feedback">Please select a manager.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="hire_date" class="form-label">Hire Date:</label>
+                            <input type="date" class="form-select" id="hire_date" name="hire_date" required>
+                            <div class="invalid-feedback">Please select a hire date.</div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label for="end_date" class="form-label">End Date:</label>
+                            <input type="date" class="form-select" id="end_date" name="end_date" required>
+                            <div class="invalid-feedback">Please select a end date.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="salary" class="form-label">Salary:</label>
+                            <input type="number" class="form-select" id="salary" name="salary" required>
+                            <div class="invalid-feedback">Please select a salary.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="employee_type" class="form-label">Employee Type:</label>
+                            <select class="form-select" id="employee_type" name="employee_type" required>
+                                <option value="">-- Select Employee Type --</option>
+                                <option value="full">Full</option>
+                                <option value="part">Part</option>
+                                <option value="contract">Contract</option>
+                            </select>
+                            <div class="invalid-feedback">Please select a employee type.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="badge" class="form-label">Badge:</label>
+                            <select class="form-select" id="badge" name="badge" required>
+                                <option value="">-- Select Badge --</option>
+                                <option value="silver">Silver</option>
+                                <option value="gold">Gold</option>
+                                <option value="diamond">Diamond</option>
+                            </select>
+                            <div class="invalid-feedback">Please select a budge.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="branch" class="form-label">Branch:</label>
+                            <select class="form-select" id="branch" name="branch">
+                                <!-- Options will be populated via JavaScript or backend code -->
+                            </select>
+                            <div class="invalid-feedback">Please select a branch.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Training Completed:</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_training_completed" name="is_training_completed">
+                                <label class="form-check-label" for="is_active">Yes/No</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Willing Travel:</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="willing_to_travel" name="willing_to_travel">
+                                <label class="form-check-label" for="is_active">Yes/No</label>
+                            </div>
+                        </div>
+                        <h5>Admin Information</h5>
+                        <div class="col-md-6">
+                            <label for="status" class="form-label">Status:</label>
+                            <select class="form-select" id="status" name="status" required>
+                                <option value="draft" selected>Draft</option>
+                                <option value="review">Review</option>
+                                <option value="published">Published</option>
+                            </select>
+                            <div class="invalid-feedback">Please select a status.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Active:</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_active" name="is_active">
+                                <label class="form-check-label" for="is_active">Yes/No</label>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <input type="hidden" id="employeeId" name="id">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-primary" id="submitBtn">Submit</button>
+                        </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+    // Define the capitalizeFirstLetter function globally
+    window.capitalizeFirstLetter = function (string) {
+        if (string) {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
+        return '';
+    };
+
+    $(document).ready(function () {
+        // Define the Base URL once
+        var baseUrl = "https://13.60.105.3/api/hr/employees/";
+        var countryUrl = "https://13.60.105.3/api/master/countries/";
+        var stateUrl = "https://13.60.105.3/api/master/states/";
+        var cityUrl = "https://13.60.105.3/api/master/cities/";
+        var departmentUrl = "https://13.60.105.3/api/master/departments/";
+        var designationUrl = "https://13.60.105.3/api/master/designations/";
+        var branchUrl = "https://13.60.105.3/api/hr/branches/";
+
+        var isEditing = false; // Flag to determine add or edit mode
+
+        // Define the status options
+        var statusOptions = [
+            { text: "Draft", value: "draft" },
+            { text: "Review", value: "review" },
+            { text: "Published", value: "published" }
+        ];
+
+        var countriesData = []; // Store country data
+        var statesData = {};    // Store state data by country ID
+        var citiesData = {};    // Store city data by state ID
+        var departmentsData = []; // To store department data
+        var designationsData = [];
+       
+
+        // Function to load countries
+        function loadCountries(selectedId) {
+            return $.ajax({
+                url: countryUrl,
+                type: "GET",
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                },
+                dataType: "json",
+                success: function (data) {
+                    countriesData = data.results;
+                    var options = '<option value="">-- Select Country --</option>';
+                    countriesData.forEach(function (country) {
+                        options += `<option value="${country.id}">${country.name}</option>`;
+                    });
+                    $("#country").html(options);
+                    if (selectedId) {
+                        $("#country").val(selectedId).change();
+                    }
+                },
+                error: function (xhr, status, error) {
+                    $("#errorAlert").text("Error loading countries: " + (xhr.responseText || error)).fadeIn();
+                    setTimeout(function () {
+                        $("#errorAlert").fadeOut();
+                    }, 5000);
+                }
+            });
+        }
+
+        // Function to load states based on selected country
+        function loadStates(countryId, selectedId) {
+            if (!countryId) {
+                $("#state").html('<option value="">-- Select State --</option>');
+                return;
+            }
+
+            // Use cached data if available
+            if (statesData[countryId]) {
+                populateStates(statesData[countryId], selectedId);
+                return;
+            }
+
+            $.ajax({
+                url: stateUrl,
+                type: "GET",
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                },
+                dataType: "json",
+                data: { country: countryId },
+                success: function (data) {
+                    statesData[countryId] = data.results;
+                    populateStates(data.results, selectedId);
+                },
+                error: function (xhr, status, error) {
+                    $("#errorAlert").text("Error loading states: " + (xhr.responseText || error)).fadeIn();
+                    setTimeout(function () {
+                        $("#errorAlert").fadeOut();
+                    }, 5000);
+                }
+            });
+        }
+
+        // Function to populate states dropdown
+        function populateStates(states, selectedId) {
+            var options = '<option value="">-- Select State --</option>';
+            states.forEach(function (state) {
+                options += `<option value="${state.id}">${state.name}</option>`;
+            });
+            $("#state").html(options);
+            if (selectedId) {
+                $("#state").val(selectedId).change();
+            }
+        }
+
+        // Function to load cities based on selected state
+        function loadCities(stateId, selectedId) {
+            if (!stateId) {
+                $("#city").html('<option value="">-- Select City --</option>');
+                return;
+            }
+
+            // Use cached data if available
+            if (citiesData[stateId]) {
+                populateCities(citiesData[stateId], selectedId);
+                return;
+            }
+
+            $.ajax({
+                url: cityUrl,
+                type: "GET",
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                },
+                dataType: "json",
+                data: { state: stateId },
+                success: function (data) {
+                    citiesData[stateId] = data.results;
+                    populateCities(data.results, selectedId);
+                },
+                error: function (xhr, status, error) {
+                    $("#errorAlert").text("Error loading cities: " + (xhr.responseText || error)).fadeIn();
+                    setTimeout(function () {
+                        $("#errorAlert").fadeOut();
+                    }, 5000);
+                }
+            });
+        }
+
+        // Function to populate cities dropdown
+        function populateCities(cities, selectedId) {
+            var options = '<option value="">-- Select City --</option>';
+            cities.forEach(function (city) {
+                options += `<option value="${city.id}">${city.name}</option>`;
+            });
+            $("#city").html(options);
+            if (selectedId) {
+                $("#city").val(selectedId);
+            }
+        }
+
+        // Load departments for dropdown
+        function loadDepartments() {
+            $.ajax({
+                url: departmentUrl,
+                type: "GET",
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                },
+                dataType: "json",
+                success: function (data) {
+                    var options = '<option value="">-- Select Department --</option>';
+                    data.results.forEach(function (department) {
+                        options += `<option value="${department.id}">${department.name}</option>`;
+                    });
+                    $("#department").html(options);
+                },
+                error: function (xhr, status, error) {
+                    $("#errorAlert").text("Error loading departments: " + (xhr.responseText || error)).fadeIn();
+                    setTimeout(function () {
+                        $("#errorAlert").fadeOut();
+                    }, 5000);
+                }
+            });
+        }
+
+        // Load designations for dropdown
+        function loadDesignations() {
+            $.ajax({
+                url: designationUrl,
+                type: "GET",
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                },
+                dataType: "json",
+                success: function (data) {
+                    var options = '<option value="">-- Select Designation --</option>';
+                    data.results.forEach(function (designation) {
+                        options += `<option value="${designation.id}">${designation.name}</option>`;
+                    });
+                    $("#designation").html(options);
+                },
+                error: function (xhr, status, error) {
+                    $("#errorAlert").text("Error loading designations: " + (xhr.responseText || error)).fadeIn();
+                    setTimeout(function () {
+                        $("#errorAlert").fadeOut();
+                    }, 5000);
+                }
+            });
+        }
+
+        // Load departments for dropdown
+        function loadBranchs() {
+            $.ajax({
+                url: branchUrl,
+                type: "GET",
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                },
+                dataType: "json",
+                success: function (data) {
+                    var options = '<option value="">-- Select Branch --</option>';
+                    data.results.forEach(function (branch) {
+                        options += `<option value="${branch.id}">${branch.name}</option>`;
+                    });
+                    $("#branch").html(options);
+                },
+                error: function (xhr, status, error) {
+                    $("#errorAlert").text("Error loading branchs: " + (xhr.responseText || error)).fadeIn();
+                    setTimeout(function () {
+                        $("#errorAlert").fadeOut();
+                    }, 5000);
+                }
+            });
+        }
+
+        // Initial load for countries, departments, and designations
+        loadCountries();
+        loadDepartments();
+        loadDesignations();
+        loadBranchs();
+
+        // Handle country change to load states
+        $("#country").change(function () {
+            var countryId = $(this).val();
+            loadStates(countryId);
+        });
+
+        // Handle state change to load cities
+        $("#state").change(function () {
+            var stateId = $(this).val();
+            loadCities(stateId);
+        });
+        // Initialize the Kendo UI Grid
+        var grid = $("#grid").kendoGrid({
+            dataSource: {
+                transport: {
+                    read: {
+                        url: baseUrl,
+                        dataType: "json",
+                        type: "GET",
+                        beforeSend: function (xhr) {
+                            xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                        }
+                    },
+                    update: {
+                        url: function (data) {
+                            return baseUrl + data.id + "/";
+                        },
+                        dataType: "json",
+                        type: "PATCH",
+                        contentType: "application/json"
+                    },
+                    parameterMap: function (options, operation) {
+                        if (operation === "read") {
+                            var params = {};
+                            // Handle pagination
+                            params.take = options.take;
+                            params.skip = options.skip;
+
+                            // Handle global search
+                            if (options.search && options.search.value) {
+                                params.search = options.search.value;
+                            }
+
+                            // Handle filters
+                            if (options.filter) {
+                                options.filter.filters.forEach(function (filter) {
+                                    if (filter.operator === "contains") {
+                                        params.search = filter.value;
+                                    } else if (filter.operator === "eq") {
+                                        params[filter.field] = filter.value;
+                                    }
+                                });
+                            }
+
+                            // Handle sorting
+                            if (options.sort && options.sort.length > 0) {
+                                var ordering = options.sort.map(function (s) {
+                                    return s.dir === "desc" ? "-" + s.field : s.field;
+                                }).join(",");
+                                params.ordering = ordering;
+                            }
+
+                            return params;
+                        }
+
+                        if (operation === "update") {
+                            return JSON.stringify({
+                                status: options.status,
+                                is_active: options.is_active
+                            });
+                        }
+
+                        return options;
+                    }
+                },
+                schema: {
+                    data: "results",
+                    total: "total",
+                    model: {
+                        id: "id",
+                        fields: {
+                            id: { editable: false, nullable: true },
+                            first_name: { editable: false, type: "string", validation: { required: true } },
+                            last_name: { editable: false, type: "string", validation: { required: true } },
+                           
+                            department: { 
+                                defaultValue: null,
+                                validation: { required: true },
+                            },
+                            designation: { 
+                                defaultValue: null,
+                                validation: { required: true },
+                            },
+                            status: { type: "string" },
+                            is_active: { type: "boolean" },
+                            description: { type: "string" }
+                        }
+                    }
+                },
+                pageSize: 5,
+                serverPaging: true,
+                serverFiltering: true,
+                serverSorting: true
+            },
+            pageable: {
+                refresh: true,
+                pageSizes: [5, 10, 20],
+                buttonCount: 5
+            },
+            sortable: true,
+            filterable: {
+                mode: "row",
+                operators: {
+                    string: {
+                        contains: "Contains",
+                        eq: "Is equal to"
+                    },
+                    boolean: {
+                        eq: "Is equal to"
+                    }
+                }
+            },
+            toolbar: [
+                { name: "save", text: "Save Changes" },
+                { name: "cancel", text: "Cancel Changes" }
+            ],
+            editable: "incell",
+            columns: [
+                { field: "first_name", title: "First Name" },
+                { field: "last_name", title: "Last Name" },
+                
+                { 
+                    field: "department", 
+                    title: "Department", 
+                    template: function(dataItem) {
+                        var department = departmentsData.find(d => d.id === dataItem.department);
+                        return department ? department.name : "N/A";
+                    }, 
+                    editor: departmentEditor,
+                    filterable: departmentFilter 
+                },
+                { 
+                    field: "designation", 
+                    title: "Designation", 
+                    template: function(dataItem) {
+                        var designation = designationsData.find(d => d.id === dataItem.designation);
+                        return designation ? designation.name : "N/A";
+                    }, 
+                    editor: designationEditor,
+                    filterable: designationFilter 
+                },
+                {
+                    field: "status",
+                    title: "Status",
+                    width: "150px",
+                    editor: statusEditor,
+                    template: "#= status ? capitalizeFirstLetter(status) : '' #",
+                    filterable: {
+                        ui: statusFilter
+                    }
+                },
+                {
+                    field: "is_active",
+                    title: "Active",
+                    width: "100px",
+                    editor: toggleEditor,
+                    template: "#= is_active ? 'Yes' : 'No' #",
+                    filterable: {
+                        ui: booleanFilter
+                    }
+                },
+                {
+                    command: [
+                        {
+                            name: "edit",
+                            text: "<i class='fas fa-edit'></i>",
+                            click: editEmployee
+                        },
+                        {
+                            name: "customDelete", // Custom delete command
+                            text: "<i class='fas fa-trash-alt'></i>",
+                            click: deleteEmployee
+                        }
+                    ],
+                    title: "&nbsp;",
+                    width: "150px"
+                }
+            ]
+        }).data("kendoGrid");
+
+
+        // Custom editor for "status" field without optionLabel
+        function statusEditor(container, options) {
+            $('<select required data-bind="value:status"></select>')
+                .appendTo(container)
+                .kendoDropDownList({
+                    dataSource: statusOptions,
+                    dataTextField: "text",
+                    dataValueField: "value",
+                    // Removed optionLabel
+                    // Optionally, set a default value if needed
+                });
+        }
+
+        // Custom editor for boolean fields
+        function toggleEditor(container, options) {
+            $('<input type="checkbox" data-bind="checked:' + options.field + '" />')
+                .appendTo(container);
+        }
+        // Custom editor for "country" field
+        function departmentEditor(container, options) {
+            $('<select required data-bind="value:department"></select>')
+                .appendTo(container)
+                .kendoDropDownList({
+                    dataSource: departmentsData,
+                    dataTextField: "name",
+                    dataValueField: "id",
+                    optionLabel: "-- Select Department --"
+                });
+        }
+        // Custom editor for "country" field
+        function designationEditor(container, options) {
+            $('<select required data-bind="value:designation"></select>')
+                .appendTo(container)
+                .kendoDropDownList({
+                    dataSource: designationsData,
+                    dataTextField: "name",
+                    dataValueField: "id",
+                    optionLabel: "-- Select Designation --"
+                });
+        }
+
+        // Filter UI for "department" field
+        function departmentFilter(element) {
+            element.kendoDropDownList({
+                dataSource: departmentsData,
+                dataTextField: "name",
+                dataValueField: "id",
+                optionLabel: "--Select Department--"
+            });
+        }
+        // Filter UI for "designation" field
+        function designationFilter(element) {
+            element.kendoDropDownList({
+                dataSource: designationData,
+                dataTextField: "name",
+                dataValueField: "id",
+                optionLabel: "--Select Designation--"
+            });
+        }
+        // Filter UI for "status" field without optionLabel
+        function statusFilter(element) {
+            element.kendoDropDownList({
+                dataSource: statusOptions,
+                dataTextField: "text",
+                dataValueField: "value",
+                // Removed optionLabel
+                // Optionally, set a default value if needed
+            });
+        }
+
+        // Filter UI for boolean fields
+        function booleanFilter(element) {
+            element.kendoDropDownList({
+                dataSource: [
+                    { text: "Yes", value: true },
+                    { text: "No", value: false }
+                ],
+                dataTextField: "text",
+                dataValueField: "value",
+                // Removed optionLabel
+                // Optionally, set a default value if needed
+            });
+        }
+
+        // Global Search Functionality
+        $("#globalSearch").keyup(function () {
+            var value = $(this).val();
+            if (value) {
+                grid.dataSource.filter({
+                    logic: "or",
+                    filters: [
+                        { field: "first_name", operator: "contains", value: value },
+                        { field: "last_name", operator: "contains", value: value },
+                        { field: "department", operator: "eq", value: getDepartmentIdByName(value) },
+                        { field: "designation", operator: "eq", value: getDesignationIdByName(value) },
+                        { field: "status", operator: "contains", value: value },
+                        { field: "is_active", operator: "eq", value: value.toLowerCase() === "yes" || value.toLowerCase() === "true" },
+                    ]
+                });
+            } else {
+                grid.dataSource.filter({});
+            }
+        });
+
+        // Helper function to get country ID by name
+        function getNationalityIdByName(name) {
+            var nationality = countriesData.find(c => c.name.toLowerCase().includes(name.toLowerCase()));
+            return nationality ? nationality.id : null;
+        }
+
+        function getCountryIdByName(name) {
+            var country = countriesData.find(c => c.name.toLowerCase().includes(name.toLowerCase()));
+            return country ? country.id : null;
+        }
+        // Helper function to get country ID by name
+        function getStateIdByName(name) {
+            var state = statesData.find(s => s.name.toLowerCase().includes(name.toLowerCase()));
+            return state ? state.id : null;
+        }
+
+        function getDepartmentIdByName(name) {
+            var department = departmentsData.find(d => d.name.toLowerCase().includes(name.toLowerCase()));
+            return department ? department.id : null;
+            
+        }
+        
+        // Handle Add New Employee Button Click
+        $("#addEmployeeBtn").click(function () {
+            resetForm();
+            isEditing = false; // Set to add mode
+            $("#employeeModalLabel").text("Create New Employee");
+            $("#submitBtn").text("Create");
+            $("#photo").attr("required", "required"); 
+            $("#employeeModal").modal("show");
+        });
+
+        // Handle Edit Button Click
+        function editEmployee(e) {
+            e.preventDefault();
+            var dataItem = grid.dataItem($(e.currentTarget).closest("tr"));
+
+            // Populate the form with dataItem
+            $("#employeeId").val(dataItem.id);
+            $("#first_name").val(dataItem.first_name);
+            $("#last_name").val(dataItem.last_name);
+            $("#dob").val(dataItem.dob);
+            $("#gender").val(dataItem.gender);
+            $("#nationality").val(dataItem.nationality);
+            $("#marital_status").val(dataItem.marital_status);
+            $("#country").val(dataItem.country);
+            $("#state").val(dataItem.state);
+            $("#city").val(dataItem.city);
+            $("#address").val(dataItem.address);
+            $("#department").val(dataItem.department);
+            $("#designation").val(dataItem.designation);
+            $("#manager").val(dataItem.manager);
+            $("#hire_date").val(dataItem.hire_date);
+            $("#end_date").val(dataItem.end_date);
+            $("#salary").val(dataItem.salary);
+            $("#employee_type").val(dataItem.employee_type);
+            $("#badge").val(dataItem.badge);
+            $("is_training_completed").val(is_training_completed);
+            $("#willing_to_travel").val(dataItem.willing_to_travel);
+            $("#description").val(dataItem.description);
+            $("#status").val(dataItem.status);
+            $("#is_active").prop("checked", dataItem.is_active);
+
+            isEditing = true; // Set to edit mode
+            $("#employeeModalLabel").text("Edit Employee");
+            $("#submitBtn").text("Update");
+            $("#employeeModal").modal("show");
+        }
+
+        // Handle Delete Button Click
+        function deleteEmployee(e) {
+            e.preventDefault();
+            var grid = $("#grid").data("kendoGrid");
+            var dataItem = grid.dataItem($(e.currentTarget).closest("tr"));
+
+            if (confirm("Are you sure you want to delete this employee?")) {
+                // Show overlay
+                $(".overlay").show();
+
+                $.ajax({
+                    url: baseUrl + dataItem.id + "/",
+                    type: "DELETE",
+                    beforeSend: function (xhr) {
+                        xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                    },
+                    success: function () {
+                        $("#successAlert").text("Employee deleted successfully.").fadeIn();
+                        grid.dataSource.read();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#successAlert").fadeOut();
+                        }, 3000);
+                    },
+                    error: function (xhr, status, error) {
+                        $("#errorAlert").text("Error deleting employee: " + (xhr.responseText || error)).fadeIn();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#errorAlert").fadeOut();
+                        }, 5000);
+                    }
+                });
+            }
+        }
+
+        // Reset Form Function
+        function resetForm() {
+            $("#employeeForm")[0].reset();
+            $("#employeeForm").removeClass("was-validated");
+            $("#employeeId").val("");
+            $("#photoFeedback").text('');
+            $("#is_active").prop("checked", false);
+            $("#nationality").val("");
+            $("#country").val("");
+            $("#state").val("");
+            $("#city").val("");
+            $("#department").val("");
+            $("#designation").val("");
+            $("#branch").val("");
+            $("#photo").removeAttr("required"); // Remove required attribute
+            $("#photo").removeClass('is-invalid is-valid');
+        }
+
+        // Validate photo size and type
+        $('#photo').on('change', function () {
+            const file = this.files[0];
+            if (file) {
+                if (file.size > 200 * 1024) { // 200 KB limit
+                    $('#photoFeedback').text('File size must be under 200KB.');
+                    this.setCustomValidity("File size must be under 200KB.");
+                    $(this).addClass('is-invalid').removeClass('is-valid');
+                } else if (!file.type.match('image/png')) {
+                    $('#photoFeedback').text('Only PNG images are allowed.');
+                    this.setCustomValidity("Only PNG images are allowed.");
+                    $(this).addClass('is-invalid').removeClass('is-valid');
+                } else {
+                    $('#photoFeedback').text('');
+                    this.setCustomValidity("");
+                    $(this).addClass('is-valid').removeClass('is-invalid');
+                }
+            } else {
+                if (!isEditing) {
+                    // If adding and no file selected, mark as invalid
+                    $('#photoFeedback').text('Photo is required.');
+                    this.setCustomValidity("Photo is required.");
+                    $(this).addClass('is-invalid').removeClass('is-valid');
+                } else {
+                    // If editing and no file selected, reset validation
+                    $('#photoFeedback').text('');
+                    this.setCustomValidity("");
+                    $(this).removeClass('is-invalid is-valid');
+                }
+            }
+        });
+        // Handle Form Submission for Create and Update
+        $('#employeeForm').on('submit', function (e) {
+            e.preventDefault(); // Prevent the default form submission
+
+            var form = this;
+            var photoInput = $('#photo')[0];
+            var formData = new FormData(form);
+            var employeeId = $("#employeeId").val();
+            var isActive = $('#is_active').is(':checked');
+            formData.set("is_active", isActive);
+
+            // Set the 'required' attribute dynamically based on isEditing
+            if (!isEditing) {
+                photoInput.setAttribute('required', 'required');
+            } else {
+                photoInput.removeAttribute('required');
+            }
+            
+
+            // Check form validity
+            var isValid = form.checkValidity();
+            if (!isEditing) {
+                // When adding, ensure flag_image is uploaded
+                if (!photoInput.files[0]) {
+                    isValid = false;
+                    $('#photo').addClass('is-invalid');
+                    $('#photoFeedback').text('Photo is required.');
+                }
+            } 
+            if (isValid) {
+                // **New Code: Remove 'flag_image' from FormData if editing and no new file is uploaded**
+                if (isEditing && !photo.files[0]) {
+                    formData.delete('photo');
+                }
+                // Show overlay
+                $(".overlay").show();
+
+                // Hide alerts
+                $("#successAlert").hide();
+                $("#errorAlert").hide();
+
+                // Determine the request type
+                var requestType = employeeId ? "PATCH" : "POST";
+                var requestUrl = employeeId ? baseUrl + employeeId + "/" : baseUrl;
+
+                $.ajax({
+                    url: requestUrl,
+                    type: requestType,
+                    beforeSend: function(xhr) {
+                        xhr.setRequestHeader("Authorization", "Token YuwnOBGh7gwvsqYTyaKqTCHUAue4NOwLJPBiGljwtKA");
+                    },
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (response) {
+                        $("#successAlert").text(employeeId ? "Employee updated successfully." : "Employee created successfully.").fadeIn();
+                        $("#employeeModal").modal("hide");
+                        grid.dataSource.read();
+                        resetForm();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#successAlert").fadeOut();
+                        }, 3000);
+                    },
+                    error: function (xhr, status, error) {
+                        $("#errorAlert").text("Error: " + (xhr.responseText || error)).fadeIn();
+                        $(".overlay").hide();
+                        setTimeout(function () {
+                            $("#errorAlert").fadeOut();
+                        }, 5000);
+                    }
+                });
+            } else {
+                e.stopPropagation();
+                $(form).addClass('was-validated');
+            }
+        });
+
+        // Reset form when modal is closed
+        $('#employeeModal').on('hidden.bs.modal', function () {
+            resetForm();
+            $("#employeeModalLabel").text("Create New Employee");
+            $("#submitBtn").text("Submit");
+            $("#photo").attr("required", "required");
+        });
+    });
+</script>
+{% endblock extra_js %}
